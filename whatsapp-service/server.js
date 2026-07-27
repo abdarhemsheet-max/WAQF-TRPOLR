@@ -27,6 +27,25 @@ let lastError = '';
 let sendingInProgress = false;
 let sendAborted = false;
 
+let initRetries = 0;
+const MAX_INIT_RETRIES = 3;
+
+function getSessionPath() {
+  return process.cwd() + '/.wwebjs_auth';
+}
+
+function cleanSession() {
+  const sessionPath = getSessionPath();
+  try {
+    if (fs.existsSync(sessionPath)) {
+      fs.rmSync(sessionPath, { recursive: true, force: true });
+      console.log('[SESSION] تم حذف مجلد الجلسة التالف');
+    }
+  } catch (e) {
+    console.error('[SESSION] فشل حذف الجلسة:', e.message);
+  }
+}
+
 function getPuppeteerConfig() {
   const config = {
     headless: true,
@@ -38,7 +57,11 @@ function getPuppeteerConfig() {
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
-      '--single-process'
+      '--single-process',
+      '--disable-site-isolation-trials',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-blink-features=AutomationControlled'
     ]
   };
 
@@ -66,6 +89,20 @@ function getPuppeteerConfig() {
 }
 
 const puppeteerConfig = getPuppeteerConfig();
+let initRetries = 0;
+const MAX_INIT_RETRIES = 3;
+
+function getSessionPath() {
+  return process.cwd() + '/.wwebjs_auth';
+}
+
+function cleanSession() {
+  const p = getSessionPath();
+  try {
+    if (fs.existsSync(p)) { fs.rmSync(p, { recursive: true, force: true }); }
+    console.log('[SESSION] تم حذف مجلد الجلسة التالف');
+  } catch (e) { console.error('[SESSION] فشل حذف الجلسة:', e.message); }
+}
 
 function initClient() {
   if (client) {
@@ -73,7 +110,7 @@ function initClient() {
   }
 
   client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({ clientId: 'waqf-session' }),
     puppeteer: puppeteerConfig
   });
 
@@ -94,6 +131,7 @@ function initClient() {
     qrGenerated = false;
     qrCodeData = null;
     lastError = '';
+    initRetries = 0;
     try {
       senderNumber = client.info.wid.user || '';
       console.log(`[READY] WhatsApp متصل — رقم المُرسل: ${senderNumber}`);
@@ -107,6 +145,10 @@ function initClient() {
     qrCodeData = null;
     senderNumber = '';
     lastError = `تم قطع الاتصال: ${reason}`;
+    if (String(reason).includes('detach') || reason === 'NAVIGATION') {
+      console.log('[FIX] detached frame — تنظيف الجلسة');
+      cleanSession();
+    }
     setTimeout(() => {
       console.log('[RECONNECT] جاري إعادة الاتصال...');
       initClient();
@@ -117,11 +159,27 @@ function initClient() {
     console.log(`[AUTH FAIL] ${msg}`);
     lastError = `فشل المصادقة: ${msg}`;
     clientReady = false;
+    cleanSession();
   });
 
   client.initialize().catch((err) => {
-    console.error('[INIT ERROR]', err.message);
-    lastError = `خطأ في التهيئة: ${err.message}`;
+    const msg = err.message || String(err);
+    console.error('[INIT ERROR]', msg);
+    lastError = `خطأ في التهيئة: ${msg}`;
+    clientReady = false;
+
+    if (msg.includes('detach') || msg.includes('frame') || msg.includes('Session') || msg.includes('launch')) {
+      initRetries++;
+      if (initRetries <= MAX_INIT_RETRIES) {
+        console.log(`[RETRY] محاولة ${initRetries}/${MAX_INIT_RETRIES}`);
+        cleanSession();
+        setTimeout(() => initClient(), 2000 * initRetries);
+      } else {
+        lastError = `فشلت ${MAX_INIT_RETRIES} محاولات. احذف مجلد .wwebjs_auth يدوياً وأعد التشغيل.`;
+        console.error('[FATAL]', lastError);
+        initRetries = 0;
+      }
+    }
   });
 }
 
