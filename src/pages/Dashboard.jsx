@@ -2,11 +2,17 @@ import { useMemo } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useStudents } from '../hooks/useStudents.js';
 import { useReports } from '../hooks/useReports.js';
-import { ar, arPercent } from '../utils/numbers.js';
 import { progressColor } from '../utils/levels.js';
 import TopBar from '../components/TopBar.jsx';
 
 const TOP_COUNT = 10;
+
+function n(value) {
+  const num = Number(value);
+  if (Number.isNaN(num)) return String(value ?? '');
+  if (num === 10) return 'عشرة';
+  return String(num);
+}
 
 function formatDate(value) {
   if (!value) return '—';
@@ -60,24 +66,24 @@ export default function Dashboard() {
       <div className="stats-grid">
         <div className="stat-card">
           <span className="label">إجمالي الطلاب</span>
-          <span className="value">{ar(summary.total)}</span>
+          <span className="value">{n(summary.total)}</span>
         </div>
         <div className="stat-card">
           <span className="label">أتموا المتن</span>
           <span className="value" style={{ color: 'var(--success)' }}>
-            {ar(summary.completed)}
+            {n(summary.completed)}
           </span>
         </div>
         <div className="stat-card">
           <span className="label">متوسط الإنجاز</span>
           <span className="value" style={{ color: 'var(--primary)' }}>
-            {arPercent(summary.average)}
+            {n(summary.average) + '%'}
           </span>
         </div>
         <div className="stat-card">
           <span className="label">بلا رقم ولي أمر</span>
           <span className="value" style={{ color: summary.withoutPhone ? 'var(--warning)' : undefined }}>
-            {ar(summary.withoutPhone)}
+            {n(summary.withoutPhone)}
           </span>
         </div>
       </div>
@@ -96,7 +102,7 @@ export default function Dashboard() {
             <ol className="top-list">
               {topStudents.map((student, index) => (
                 <li className="top-row" key={student.id}>
-                  <span className={`top-rank${index < 3 ? ' medal' : ''}`}>{ar(index + 1)}</span>
+                  <span className={`top-rank${index < 3 ? ' medal' : ''}`}>{n(index + 1)}</span>
                   <div className="top-main">
                     <span className="top-name">{student.name}</span>
                     <span className="top-meta">
@@ -114,7 +120,7 @@ export default function Dashboard() {
                         }}
                       />
                     </div>
-                    <span className="progress-text">{arPercent(student.progress)}</span>
+                    <span className="progress-text">{n(student.progress) + '%'}</span>
                   </div>
                 </li>
               ))}
@@ -134,7 +140,7 @@ export default function Dashboard() {
           <div className="dash-metric">
             <span className="dash-metric-label">نسبة فتح المحادثات</span>
             <span className="dash-metric-value" style={{ color: 'var(--primary)' }}>
-              {arPercent(stats.openRate)}
+              {n(stats.openRate) + '%'}
             </span>
             <div className="progress-bar-bg">
               <div
@@ -151,22 +157,22 @@ export default function Dashboard() {
           <div className="dash-mini-grid">
             <div className="dash-mini">
               <span className="label">عمليات إرسال</span>
-              <span className="value">{ar(stats.runs)}</span>
+              <span className="value">{n(stats.runs)}</span>
             </div>
             <div className="dash-mini">
               <span className="label">مستلمون</span>
-              <span className="value">{ar(stats.total)}</span>
+              <span className="value">{n(stats.total)}</span>
             </div>
             <div className="dash-mini">
               <span className="label">فُتحت</span>
               <span className="value" style={{ color: 'var(--success)' }}>
-                {ar(stats.opened)}
+                {n(stats.opened)}
               </span>
             </div>
             <div className="dash-mini">
               <span className="label">محجوبة</span>
               <span className="value" style={{ color: 'var(--danger)' }}>
-                {ar(stats.blocked)}
+                {n(stats.blocked)}
               </span>
             </div>
           </div>
@@ -200,10 +206,10 @@ export default function Dashboard() {
                   <td>
                     <span className="level-badge">{report.template_name || '—'}</span>
                   </td>
-                  <td>{ar(report.total_count)}</td>
-                  <td style={{ color: 'var(--success)' }}>{ar(report.opened_count)}</td>
+                  <td>{n(report.total_count)}</td>
+                  <td style={{ color: 'var(--success)' }}>{n(report.opened_count)}</td>
                   <td style={{ color: report.blocked_count ? 'var(--danger)' : undefined }}>
-                    {ar(report.blocked_count)}
+                    {n(report.blocked_count)}
                   </td>
                 </tr>
               ))}
