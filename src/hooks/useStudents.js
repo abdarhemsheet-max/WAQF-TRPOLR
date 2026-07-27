@@ -66,8 +66,7 @@ export function useStudents(teacherId = null) {
   }, [fetchStudents]);
 
   /**
-   * محرك البحث: يفلتر باسم الطالب ورقم الطالب فقط — لا شيء غيرهما.
-   * الرقم لم يبقَ معروضاً في الجدول لكنه ما زال قابلاً للبحث.
+   * محرك البحث: يفلتر باسم الطالب واسم المحفّظ — لا شيء غيرهما.
    */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -75,7 +74,7 @@ export function useStudents(teacherId = null) {
       ? students.filter(
           (s) =>
             s.name.toLowerCase().includes(q) ||
-            String(s.student_number).toLowerCase().includes(q)
+            (s.teacher?.name ?? '').toLowerCase().includes(q)
         )
       : students;
 
