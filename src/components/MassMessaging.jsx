@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
-import { getStatus, sendBulk } from '../lib/whatsappService.js';
+import { getStatus, sendBulkStream } from '../lib/whatsappService.js';
 import { ar } from '../utils/numbers.js';
 import { displayGuardianPhone, normalizeGuardianPhone } from '../utils/phone.js';
 import { renderTemplate } from '../utils/templates.js';
@@ -18,10 +18,20 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
   const [wsSender, setWsSender] = useState('');
   const [showQR, setShowQR] = useState(false);
   const cancelRef = useRef(false);
+  const abortRef = useRef(null);
+
+  const checkStatus = useCallback(() => {
+    getStatus().then((d) => {
+      setWsConnected(d.ready);
+      setWsSender(d.sender || '');
+    }).catch(() => setWsConnected(false));
+  }, []);
 
   useEffect(() => {
-    getStatus().then((d) => { setWsConnected(d.ready); setWsSender(d.sender || ''); }).catch(() => setWsConnected(false));
-  }, []);
+    checkStatus();
+    const id = setInterval(checkStatus, 5000);
+    return () => clearInterval(id);
+  }, [checkStatus]);
 
   const template = usable.find((t) => t.id === templateId) ?? usable[0];
   const processed = results.length;
@@ -81,21 +91,50 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
       message: renderTemplate(template.body, s)
     }));
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const data = await sendBulk(messages);
-      collected.push(...(data.results ?? []));
+      await sendBulkStream(messages, (data) => {
+        if (data.type === 'sent' || data.type === 'failed') {
+          collected.push({
+            student_id: data.student_id,
+            name: data.name,
+            phone: data.phone,
+            status: data.type,
+            error: data.error || null,
+            at: new Date().toISOString()
+          });
+          setResults([...collected]);
+        }
+        if (data.type === 'done') {
+          setResults(data.results);
+        }
+      });
     } catch (thrown) {
-      collected.push(...messages.map((m) => ({
-        student_id: m.student_id,
-        name: m.name,
-        phone: m.phone,
-        status: 'failed',
-        error: String(thrown.message ?? thrown),
-        at: new Date().toISOString()
-      })));
+      if (cancelRef.current) {
+        collected.push(...messages.slice(collected.length).map((m) => ({
+          student_id: m.student_id,
+          name: m.name,
+          phone: m.phone,
+          status: 'cancelled',
+          error: 'أُلغي من المستخدم',
+          at: new Date().toISOString()
+        })));
+        setResults([...collected]);
+      } else {
+        collected.push(...messages.slice(collected.length).map((m) => ({
+          student_id: m.student_id,
+          name: m.name,
+          phone: m.phone,
+          status: 'failed',
+          error: String(thrown.message ?? thrown),
+          at: new Date().toISOString()
+        })));
+        setResults([...collected]);
+      }
     }
 
-    setResults(collected);
     setRunning(false);
     setFinished(true);
     await archiveReport(collected, startedAt);
@@ -103,6 +142,9 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
 
   const cancel = () => {
     cancelRef.current = true;
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
   };
 
   return (
@@ -168,13 +210,13 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
 
           <div className="mass-log">
             {results.map((r, i) => (
-              <div className={`mass-log-row ${r.status === 'sent' ? 'opened' : 'blocked'}`} key={r.student_id || i}>
+              <div className={`mass-log-row ${r.status === 'sent' ? 'opened' : r.status === 'cancelled' ? 'blocked' : 'blocked'}`} key={r.student_id || i}>
                 <span className="mass-log-name">{r.name}</span>
                 <span className="mass-log-phone">
                   {r.phone ? displayGuardianPhone(r.phone) : 'بلا رقم'}
                 </span>
                 <span className="mass-log-status">
-                  {r.status === 'sent' ? 'أُرسلت' : `فشل — ${r.error || ''}`}
+                  {r.status === 'sent' ? 'أُرسلت' : r.status === 'cancelled' ? 'أُلغي' : `فشل — ${r.error || ''}`}
                 </span>
               </div>
             ))}
@@ -191,8 +233,8 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
       )}
 
       {running && (
-        <button type="button" className="btn-primary" onClick={cancel}>
-          إيقاف بعد الرسالة الحالية
+        <button type="button" className="btn-primary" onClick={cancel} style={{ background: 'var(--danger)' }}>
+          ⏹ إيقاف الإرسال
         </button>
       )}
 

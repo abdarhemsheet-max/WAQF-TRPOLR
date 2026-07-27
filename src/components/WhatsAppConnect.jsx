@@ -8,20 +8,14 @@ export default function WhatsAppConnect({ onClose, onConnected }) {
   const [message, setMessage] = useState('');
   const intervalRef = useRef(null);
 
-  useEffect(() => {
-    poll();
-    intervalRef.current = setInterval(poll, 3000);
-    return () => clearInterval(intervalRef.current);
-  }, []);
-
-  const poll = async () => {
+  const poll = async (retrying) => {
     try {
       const data = await fetchQR();
       setStatus(data.status);
       if (data.status === 'ready') {
         setMessage('WhatsApp متصل وجاهز للإرسال');
         clearInterval(intervalRef.current);
-        onConnected?.();
+        setTimeout(() => onConnected?.(), 800);
         return;
       }
       if (data.status === 'qr') {
@@ -35,6 +29,19 @@ export default function WhatsAppConnect({ onClose, onConnected }) {
       setMessage('تعذّر الاتصال بالخادم. تأكد من تشغيل الخدمة.');
     }
   };
+
+  const startPolling = (retrying) => {
+    setStatus('initializing');
+    setMessage('جارٍ الاتصال...');
+    clearInterval(intervalRef.current);
+    poll(retrying);
+    intervalRef.current = setInterval(poll, 3000);
+  };
+
+  useEffect(() => {
+    startPolling();
+    return () => clearInterval(intervalRef.current);
+  }, []);
 
   return (
     <Modal title="الاتصال بـ WhatsApp" onClose={onClose}>
@@ -72,7 +79,7 @@ export default function WhatsAppConnect({ onClose, onConnected }) {
         )}
 
         {status === 'error' && (
-          <button className="btn-primary" onClick={() => { setStatus('initializing'); setMessage('جارٍ المحاولة...'); }}>
+          <button className="btn-primary" onClick={() => startPolling(true)}>
             إعادة المحاولة
           </button>
         )}

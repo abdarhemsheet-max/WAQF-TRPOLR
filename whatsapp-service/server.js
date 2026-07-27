@@ -217,34 +217,47 @@ app.post('/api/whatsapp/send-bulk', async (req, res) => {
     return res.status(400).json({ error: 'يجب إرسال مصفوفة من الرسائل.' });
   }
 
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
   const results = [];
   const SEND_DELAY_MS = 1500;
+  let aborted = false;
+
+  req.on('close', () => {
+    aborted = true;
+    console.log('[ABORT] العميل قطع الاتصال');
+  });
 
   for (let i = 0; i < messages.length; i++) {
+    if (aborted) break;
+
     const { phone, message, student_id, name } = messages[i];
     const chatId = phone.includes('@c.us') ? phone : `${phone}@c.us`;
 
     try {
       await client.sendMessage(chatId, message);
       results.push({ student_id, name, phone, status: 'sent', at: new Date().toISOString() });
-      console.log(`[SENT] ${i + 1}/${messages.length} — ${name} (${phone})`);
+      res.write(`data: ${JSON.stringify({ type: 'sent', index: i, total: messages.length, student_id, name, phone })}\n\n`);
+      console.log(`[SENT] ${i + 1}/${messages.length} — ${name}`);
     } catch (err) {
-      results.push({
-        student_id, name, phone, status: 'failed',
-        error: err.message || 'فشل الإرسال',
-        at: new Date().toISOString()
-      });
-      console.log(`[FAILED] ${i + 1}/${messages.length} — ${name} (${phone}): ${err.message}`);
+      results.push({ student_id, name, phone, status: 'failed', error: err.message, at: new Date().toISOString() });
+      res.write(`data: ${JSON.stringify({ type: 'failed', index: i, total: messages.length, student_id, name, phone, error: err.message })}\n\n`);
+      console.log(`[FAILED] ${i + 1}/${messages.length} — ${name}: ${err.message}`);
     }
 
-    if (i < messages.length - 1) {
+    if (i < messages.length - 1 && !aborted) {
       await new Promise((resolve) => setTimeout(resolve, SEND_DELAY_MS));
     }
   }
 
   const sentCount = results.filter((r) => r.status === 'sent').length;
   console.log(`[DONE] تم الإرسال: ${sentCount}/${messages.length}`);
-  res.json({ results });
+  res.write(`data: ${JSON.stringify({ type: 'done', results })}\n\n`);
+  res.end();
 });
 
 app.get('/api/health', (req, res) => {
