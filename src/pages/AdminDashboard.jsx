@@ -5,6 +5,7 @@ import { useTemplates } from '../hooks/useTemplates.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ar } from '../utils/numbers.js';
 import { TrashIcon } from '../components/Icons.jsx';
+import Modal from '../components/Modal.jsx';
 import TopBar from '../components/TopBar.jsx';
 import Toolbar from '../components/Toolbar.jsx';
 import StatsGrid from '../components/StatsGrid.jsx';
@@ -38,6 +39,7 @@ export default function AdminDashboard() {
   const [teachers, setTeachers] = useState([]);
   const [addingTeacher, setAddingTeacher] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [judging, setJudging] = useState(null);
   const [messaging, setMessaging] = useState(false);
   const [managingTemplates, setManagingTemplates] = useState(false);
   const [showTeachers, setShowTeachers] = useState(false);
@@ -129,6 +131,7 @@ export default function AdminDashboard() {
           onVoiceRatingCommit={commitVoiceRating}
           onEdit={setEditing}
           onDelete={deleteStudent}
+          onJudge={setJudging}
         />
       )}
 
@@ -215,6 +218,42 @@ export default function AdminDashboard() {
           onClose={() => setManagingTemplates(false)}
           onChanged={refreshTemplates}
         />
+      )}
+
+      {judging && (
+        <Modal title={`تحكيم: ${judging.name}`} onClose={() => setJudging(null)}>
+          <div style={{ padding: '8px 0' }}>
+            <div className="field">
+              <label>المستوى</label>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{judging.level}</div>
+            </div>
+            <div className="field">
+              <label>نسبة الإنجاز</label>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{ar(judging.progress)}%</div>
+            </div>
+            <div className="field">
+              <label>مركز التحفيظ</label>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{judging.memorization_center || '—'}</div>
+            </div>
+            <div className="field">
+              <label>تقييم الصوت</label>
+              <input
+                type="number"
+                min="0"
+                max="10"
+                step="0.5"
+                defaultValue={judging.voice_rating ?? 0}
+                onChange={(e) => changeVoiceRating(judging.id, e.target.value)}
+                onBlur={(e) => commitVoiceRating(judging.id, e.target.value)}
+                style={{ direction: 'ltr', textAlign: 'left', width: 100 }}
+              />
+              <span style={{ color: '#666', fontSize: '.8rem', marginRight: 4 }}>/10</span>
+            </div>
+            <button className="btn-primary" onClick={() => setJudging(null)} style={{ width: '100%', marginTop: 8 }}>
+              تم
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
