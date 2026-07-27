@@ -55,6 +55,10 @@ create table if not exists public.students (
 alter table public.students
     add column if not exists guardian_phone text not null default '';
 
+-- ترقية قواعد البيانات المنشأة قبل إضافة مركز التحفيظ
+alter table public.students
+    add column if not exists memorization_center text not null default '';
+
 create index if not exists students_teacher_idx on public.students (teacher_id);
 create index if not exists students_number_idx  on public.students (student_number);
 create index if not exists students_name_idx    on public.students (name);
