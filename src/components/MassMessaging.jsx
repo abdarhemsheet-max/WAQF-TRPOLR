@@ -15,11 +15,12 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
   const [results, setResults] = useState([]);
   const [archiveNote, setArchiveNote] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
+  const [wsSender, setWsSender] = useState('');
   const [showQR, setShowQR] = useState(false);
   const cancelRef = useRef(false);
 
   useEffect(() => {
-    getStatus().then((d) => setWsConnected(d.ready)).catch(() => setWsConnected(false));
+    getStatus().then((d) => { setWsConnected(d.ready); setWsSender(d.sender || ''); }).catch(() => setWsConnected(false));
   }, []);
 
   const template = usable.find((t) => t.id === templateId) ?? usable[0];
@@ -127,7 +128,7 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
       </div>
 
       <div className="alert ok" style={{ whiteSpace: 'pre-line' }}>
-        {`عدد المستلمين: ${ar(students.length)}\nفاصل زمني بين كل رسالة: 1.5 ثانية\nحالة واتساب: ${wsConnected ? '✅ متصل' : '❌ غير متصل'}`}
+        {`عدد المستلمين: ${ar(students.length)}\nفاصل زمني بين كل رسالة: 1.5 ثانية\nحالة واتساب: ${wsConnected ? '✅ متصل' : '❌ غير متصل'}${wsSender ? `\nرقم المُرسل: +${wsSender}` : ''}`}
       </div>
 
       {!wsConnected && !running && !finished && (

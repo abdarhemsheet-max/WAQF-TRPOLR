@@ -14,6 +14,7 @@ let client = null;
 let clientReady = false;
 let qrCodeData = null;
 let qrGenerated = false;
+let senderNumber = '';
 
 function initClient() {
   client = new Client({
@@ -46,12 +47,16 @@ function initClient() {
     clientReady = true;
     qrGenerated = false;
     qrCodeData = null;
+    try {
+      senderNumber = client.info.wid.user || '';
+    } catch { /* ignore */ }
   });
 
   client.on('disconnected', (reason) => {
     clientReady = false;
     qrGenerated = false;
     qrCodeData = null;
+    senderNumber = '';
     setTimeout(() => {
       try { client.initialize(); } catch { /* ignore */ }
     }, 5000);
@@ -76,7 +81,7 @@ app.get('/api/whatsapp/qr', (req, res) => {
 });
 
 app.get('/api/whatsapp/status', (req, res) => {
-  res.json({ ready: clientReady, connected: clientReady });
+  res.json({ ready: clientReady, connected: clientReady, sender: senderNumber });
 });
 
 app.post('/api/whatsapp/send-bulk', async (req, res) => {
