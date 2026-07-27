@@ -1,13 +1,10 @@
 services:
   - type: web
     name: waqf-whatsapp-service
-    env: node
-    buildCommand: npm install
-    startCommand: npm start
+    env: docker
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: PORT
-        value: 3001
+        value: 10000
       - key: ALLOWED_ORIGINS
         value: https://abdarhemsheet-max.github.io,http://localhost:5173
-      - key: PUPPETEER_SKIP_DOWNLOAD
-        value: true
