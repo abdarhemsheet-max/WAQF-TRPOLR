@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { ar } from '../utils/numbers.js';
-import { normalizeGuardianPhone, displayGuardianPhone } from '../utils/phone.js';
+import { normalizeGuardianPhone } from '../utils/phone.js';
 import { renderTemplate } from '../utils/templates.js';
 import Modal from './Modal.jsx';
 
 function downloadCSV(rows, filename) {
   const BOM = '\uFEFF';
-  const header = 'اسم الطالب,رقم ولي الأمر,الرسالة';
+  const header = 'Phone Number,Message';
   const lines = rows.map((r) => {
-    const phone = displayGuardianPhone(r.phone);
-    const msg = r.message.replace(/,/g, '،').replace(/\n/g, ' ');
-    return `${r.name},${phone},${msg}`;
+    const phone = r.phone;
+    const msg = r.message.replace(/"/g, '""').replace(/\n/g, ' ');
+    return `${phone},"${msg}"`;
   });
   const csv = BOM + header + '\n' + lines.join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -24,7 +24,7 @@ function downloadCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
-export default function MassMessaging({ students, templates, user, onClose }) {
+export default function MassMessaging({ students, templates, onClose }) {
   const usable = templates.length ? templates : [];
   const [templateId, setTemplateId] = useState(usable[0]?.id ?? '');
   const [exported, setExported] = useState(false);
@@ -34,17 +34,16 @@ export default function MassMessaging({ students, templates, user, onClose }) {
   const handleExport = () => {
     if (!template) return;
     const rows = students.map((s) => ({
-      name: s.name,
       phone: normalizeGuardianPhone(s.guardian_phone),
       message: renderTemplate(template.body, s)
     }));
     const now = new Date().toISOString().slice(0, 10);
-    downloadCSV(rows, `رسائل_واتساب_${now}.csv`);
+    downloadCSV(rows, `whatsapp_messages_${now}.csv`);
     setExported(true);
   };
 
   return (
-    <Modal title="تصدير رسائل المجموعة" onClose={onClose}>
+    <Modal title="تصدير رسائل واتساب" onClose={onClose}>
       {!usable.length && (
         <div className="alert error">لا توجد قوالب رسائل. أنشئ قالباً أولاً من زر «القوالب».</div>
       )}
@@ -66,18 +65,18 @@ export default function MassMessaging({ students, templates, user, onClose }) {
       </div>
 
       <div className="alert ok" style={{ whiteSpace: 'pre-line' }}>
-        {`عدد المستلمين: ${ar(students.length)}\nسيتم تصدير ملف CSV يحتوي على:\n• اسم الطالب\n• رقم ولي الأمر (بالصيغة الدولية)\n• نص الرسالة الجاهز`}
+        {`عدد المستلمين: ${ar(students.length)}\nسيتم تصدير ملف CSV بعمودين:\n• Phone Number — رقم ولي الأمر\n• Message — نص الرسالة الجاهز`}
       </div>
 
       {exported && (
         <div className="alert ok">
-          ✅ تم تصدير الملف. استورده يدوياً في خادم واتساب المحلي.
+          ✅ تم التصدير. شغّل مرسل واتساب المحلي واختر الملف.
         </div>
       )}
 
       {!exported && (
         <button type="button" className="btn-primary" onClick={handleExport} disabled={!template} style={{ width: '100%' }}>
-          📥 تحميل ملف CSV
+          📥 تحميل CSV
         </button>
       )}
 

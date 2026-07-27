@@ -11,7 +11,8 @@ export const TEMPLATE_VARIABLES = [
   { token: '{المتن}', label: 'المتن', resolve: (s) => s.matn ?? '' },
   { token: '{الملاحظة}', label: 'الملاحظة', resolve: (s) => String(s.notes ?? '').trim() },
   { token: '{المحفظ}', label: 'اسم المحفّظ', resolve: (s) => s.teacher?.name ?? '' },
-  { token: '{الحلقة}', label: 'رمز الحلقة', resolve: (s) => s.teacher?.halaqa_number ?? '' }
+  { token: '{الحلقة}', label: 'رمز الحلقة', resolve: (s) => s.teacher?.halaqa_number ?? '' },
+  { token: '{مركز_التحفيظ}', label: 'مركز التحفيظ', resolve: (s) => s.memorization_center ?? '' }
 ];
 
 /**
@@ -71,5 +72,6 @@ export const PREVIEW_STUDENT = {
   progress: 50,
   matn: 'متن الجزرية',
   notes: 'مثال على ملاحظة',
+  memorization_center: 'مركز تحفيظ الأوقاف طرابلس',
   teacher: { name: 'عبدالرحمن الشمري', halaqa_number: 'الأولى' }
 };

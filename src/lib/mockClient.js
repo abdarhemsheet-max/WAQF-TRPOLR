@@ -181,6 +181,7 @@ class MockQuery {
         progress: Number(input.progress) || 0,
         notes: clean(input.notes),
         guardian_phone: clean(input.guardian_phone),
+        memorization_center: clean(input.memorization_center),
         teacher_id: input.teacher_id,
         created_at: now,
         updated_at: now

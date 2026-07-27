@@ -32,7 +32,8 @@ export default function EditStudentForm({ student, onClose, onSaved }) {
     name: student.name ?? '',
     level: student.level ?? LEVELS[0].level,
     guardian_phone: student.guardian_phone ?? '',
-    notes: student.notes ?? ''
+    notes: student.notes ?? '',
+    memorization_center: student.memorization_center ?? ''
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -83,7 +84,8 @@ export default function EditStudentForm({ student, onClose, onSaved }) {
       guardian_phone: form.guardian_phone.trim()
         ? normalizeGuardianPhone(form.guardian_phone)
         : '',
-      notes: form.notes.trim()
+      notes: form.notes.trim(),
+      memorization_center: form.memorization_center.trim()
     };
 
     const { data, error: dbError } = await supabase
@@ -138,6 +140,16 @@ export default function EditStudentForm({ student, onClose, onSaved }) {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="field">
+          <label>مركز التحفيظ</label>
+          <input
+            type="text"
+            value={form.memorization_center}
+            onChange={(e) => set('memorization_center', e.target.value)}
+            placeholder="مثال: مركز تحفيظ الأوقاف طرابلس"
+          />
         </div>
 
         <div className="field">

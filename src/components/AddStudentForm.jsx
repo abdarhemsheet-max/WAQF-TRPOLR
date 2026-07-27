@@ -8,7 +8,8 @@ const EMPTY = {
   name: '',
   level: LEVELS[0].level,
   notes: '',
-  guardian_phone: ''
+  guardian_phone: '',
+  memorization_center: ''
 };
 
 /**
@@ -57,6 +58,7 @@ export default function AddStudentForm({ teacherId, onClose, onSaved }) {
         progress: 0,
         notes: form.notes.trim(),
         guardian_phone: normalizeGuardianPhone(form.guardian_phone),
+        memorization_center: form.memorization_center.trim(),
         teacher_id: teacherId
       })
       .select('*, teacher:users!students_teacher_id_fkey(id, name, halaqa_number)')
@@ -107,6 +109,16 @@ export default function AddStudentForm({ teacherId, onClose, onSaved }) {
             value={form.notes}
             onChange={(e) => set('notes', e.target.value)}
             placeholder="اختياري"
+          />
+        </div>
+
+        <div className="field">
+          <label>مركز التحفيظ</label>
+          <input
+            type="text"
+            value={form.memorization_center}
+            onChange={(e) => set('memorization_center', e.target.value)}
+            placeholder="مثال: مركز تحفيظ الأوقاف طرابلس"
           />
         </div>
 
