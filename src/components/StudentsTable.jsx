@@ -2,7 +2,7 @@ import { ar, arPercent } from '../utils/numbers.js';
 import { progressColor } from '../utils/levels.js';
 import { openGuardianWhatsapp } from '../utils/whatsapp.js';
 import { displayGuardianPhone, normalizeGuardianPhone } from '../utils/phone.js';
-import { EditIcon, TrashIcon, WhatsappBubbleIcon } from './Icons.jsx';
+import { EditIcon, TrashIcon, WhatsappBubbleIcon, JudgeIcon } from './Icons.jsx';
 
 export default function StudentsTable({
   students,
@@ -53,22 +53,23 @@ export default function StudentsTable({
                   <span className="center-badge">{student.memorization_center || '—'}</span>
                 </td>
                 <td>
-                  <input
-                    type="number"
-                    className="voice-input"
-                    min="0"
-                    max="10"
-                    step="0.5"
-                    value={student.voice_rating ?? 0}
-                    title="عدّل تقييم الصوت من 0 إلى 10"
-                    onChange={(e) => onVoiceRatingChange?.(student.id, e.target.value)}
-                    onBlur={(e) => onVoiceRatingCommit?.(student.id, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                    style={{ width: 60, direction: 'ltr', textAlign: 'left' }}
-                  />
-                  <span style={{ color: '#666', fontSize: '.7rem', marginRight: 2 }}>/10</span>
+                  <div className="voice-rating-wrap">
+                    <input
+                      type="number"
+                      className="voice-input"
+                      min="0"
+                      max="10"
+                      step="0.5"
+                      value={student.voice_rating ?? 0}
+                      title="عدّل تقييم الصوت من 0 إلى 10"
+                      onChange={(e) => onVoiceRatingChange?.(student.id, e.target.value)}
+                      onBlur={(e) => onVoiceRatingCommit?.(student.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                      }}
+                    />
+                    <span className="progress-sign">/10</span>
+                  </div>
                 </td>
                 {showTeacherColumn && (
                   <td>
@@ -123,7 +124,7 @@ export default function StudentsTable({
                   <div className="row-actions">
                     {showGuardianMessage && (
                       <button
-                        className={`btn-whatsapp guardian${phone ? '' : ' no-phone'}`}
+                        className="btn-whatsapp guardian"
                         onClick={() => openGuardianWhatsapp(student)}
                         title={
                           phone
@@ -132,16 +133,17 @@ export default function StudentsTable({
                         }
                       >
                         <WhatsappBubbleIcon />
-                        إنشاء رسالة
+                        <span className="btn-label">إنشاء رسالة</span>
                       </button>
                     )}
                     {showActions && onJudge && (
                       <button
-                        className="btn-action"
+                        className="btn-action edit-btn"
                         onClick={() => onJudge(student)}
                         title="تحكيم الطالب"
                       >
-                        تحكيم
+                        <JudgeIcon />
+                        <span className="btn-label">تحكيم</span>
                       </button>
                     )}
                     {showActions && onEdit && (
@@ -151,7 +153,7 @@ export default function StudentsTable({
                         title="تعديل بيانات الطالب"
                       >
                         <EditIcon />
-                        تعديل
+                        <span className="btn-label">تعديل</span>
                       </button>
                     )}
                     {showActions && onDelete && (
@@ -161,7 +163,7 @@ export default function StudentsTable({
                         title="حذف الطالب"
                       >
                         <TrashIcon />
-                        حذف
+                        <span className="btn-label">حذف</span>
                       </button>
                     )}
                   </div>
