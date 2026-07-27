@@ -1,24 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
-import { getStatus, sendBulkStream } from '../lib/whatsappService.js';
+import { getStatus } from '../lib/whatsappService.js';
 import { ar } from '../utils/numbers.js';
-import { displayGuardianPhone, normalizeGuardianPhone } from '../utils/phone.js';
+import { normalizeGuardianPhone } from '../utils/phone.js';
 import { renderTemplate } from '../utils/templates.js';
 import Modal from './Modal.jsx';
 import WhatsAppConnect from './WhatsAppConnect.jsx';
 
-export default function MassMessaging({ students, templates, user, onClose, onArchived }) {
+export default function MassMessaging({ students, templates, user, onClose }) {
   const usable = templates.length ? templates : [];
   const [templateId, setTemplateId] = useState(usable[0]?.id ?? '');
-  const [running, setRunning] = useState(false);
-  const [finished, setFinished] = useState(false);
-  const [results, setResults] = useState([]);
-  const [archiveNote, setArchiveNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const [note, setNote] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
   const [wsSender, setWsSender] = useState('');
   const [showQR, setShowQR] = useState(false);
-  const cancelRef = useRef(false);
-  const abortRef = useRef(null);
 
   const checkStatus = useCallback(() => {
     getStatus().then((d) => {
@@ -34,115 +31,49 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
   }, [checkStatus]);
 
   const template = usable.find((t) => t.id === templateId) ?? usable[0];
-  const processed = results.length;
-  const sent = results.filter((r) => r.status === 'sent').length;
-  const failed = results.filter((r) => r.status === 'failed').length;
-  const percent = students.length ? Math.round((processed / students.length) * 100) : 0;
 
-  const archiveReport = async (runResults, startedAt) => {
-    const report = {
-      teacher_id: user.role === 'teacher' ? user.id : null,
-      teacher_name: user.name,
-      template_name: template?.name ?? '',
-      total_count: students.length,
-      opened_count: runResults.filter((r) => r.status === 'sent').length,
-      blocked_count: runResults.filter((r) => r.status === 'failed').length,
-      started_at: startedAt,
-      finished_at: new Date().toISOString(),
-      details: runResults
-    };
-
-    try {
-      const { error } = await supabase.from('message_reports').insert(report);
-      if (error) {
-        setArchiveNote('تعذّرت أرشفة التقرير: ' + error.message);
-      } else {
-        setArchiveNote('تم أرشفة التقرير في قاعدة البيانات.');
-      }
-    } catch {
-      setArchiveNote('تعذّرت أرشفة التقرير.');
-    }
-
-    onArchived?.();
-  };
-
-  const run = async () => {
+  const saveToQueue = async () => {
     if (!template) return;
-    if (!wsConnected) {
-      setShowQR(true);
-      return;
-    }
 
-    if (!window.confirm(`تأكيد إرسال ${ar(students.length)} رسالة عبر WhatsApp Web?\n\nسيتم إرسال الرسائل تلقائياً بفاصل زمني.`)) return;
+    if (!window.confirm(`تأكيد تجهيز ${ar(students.length)} رسالة وإرسالها إلى طابور السيرفر المحلي؟`)) return;
 
-    cancelRef.current = false;
-    setRunning(true);
-    setFinished(false);
-    setResults([]);
-    setArchiveNote('');
+    setSaving(true);
+    setDone(false);
+    setNote('');
 
-    const startedAt = new Date().toISOString();
-    const collected = [];
-
-    const messageData = students.map((s) => ({
+    const messages = students.map((s) => ({
       phone: normalizeGuardianPhone(s.guardian_phone),
-      message: renderTemplate(template.body, s)
+      message: renderTemplate(template.body, s),
+      student_name: s.name
     }));
 
-    const studentLookup = students.map((s) => ({
-      id: s.id, name: s.name, phone: s.guardian_phone
-    }));
+    const batchId = crypto.randomUUID();
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+    const rows = messages.map((m) => ({
+      batch_id: batchId,
+      phone: m.phone,
+      message: m.message,
+      student_name: m.student_name,
+      status: 'pending'
+    }));
 
     try {
-      await sendBulkStream(messageData, (data) => {
-        if (data.type === 'sent') {
-          const s = studentLookup[data.index];
-          collected.push({
-            student_id: s?.id, name: s?.name, phone: s?.phone,
-            status: 'sent', at: new Date().toISOString()
-          });
-          setResults([...collected]);
-        }
-        if (data.type === 'failed') {
-          const s = studentLookup[data.index];
-          collected.push({
-            student_id: s?.id, name: s?.name, phone: s?.phone,
-            status: 'failed', error: data.error || 'فشل الإرسال',
-            at: new Date().toISOString()
-          });
-          setResults([...collected]);
-        }
-      });
-    } catch (thrown) {
-      const remaining = studentLookup.slice(collected.length);
-      for (const s of remaining) {
-        collected.push({
-          student_id: s.id, name: s.name, phone: s.phone,
-          status: cancelRef.current ? 'cancelled' : 'failed',
-          error: cancelRef.current ? 'أُلغي من المستخدم' : String(thrown.message ?? thrown),
-          at: new Date().toISOString()
-        });
+      const { error } = await supabase.from('messages_queue').insert(rows);
+      if (error) {
+        setNote('فشل حفظ الرسائل في Supabase: ' + error.message);
+      } else {
+        setNote(`✅ تم حفظ ${ar(rows.length)} رسالة في طابور الإرسال.\n\nالآن اذهب إلى الخادم المحلي:\nhttp://localhost:3001\nواضغط "إرسال الكل".`);
+        setDone(true);
       }
-      setResults([...collected]);
+    } catch (err) {
+      setNote('خطأ: ' + (err.message || 'فشل الاتصال'));
     }
 
-    setRunning(false);
-    setFinished(true);
-    await archiveReport(collected, startedAt);
-  };
-
-  const cancel = () => {
-    cancelRef.current = true;
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
+    setSaving(false);
   };
 
   return (
-    <Modal title="المراسلة الجماعية" onClose={running ? () => {} : onClose}>
+    <Modal title="المراسلة الجماعية" onClose={saving ? () => {} : onClose}>
       {!usable.length && (
         <div className="alert error">لا توجد قوالب رسائل. أنشئ قالباً أولاً من زر «القوالب».</div>
       )}
@@ -152,7 +83,7 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
         <select
           value={templateId}
           onChange={(e) => setTemplateId(e.target.value)}
-          disabled={running || finished}
+          disabled={saving || done}
         >
           {usable.map((t) => (
             <option key={t.id} value={t.id}>
@@ -164,87 +95,53 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
       </div>
 
       <div className="alert ok" style={{ whiteSpace: 'pre-line' }}>
-        {`عدد المستلمين: ${ar(students.length)}\nفاصل زمني بين كل رسالة: 1.5 ثانية\nحالة واتساب: ${wsConnected ? '✅ متصل' : '❌ غير متصل'}${wsSender ? `\nرقم المُرسل: +${wsSender}` : ''}`}
+        {`عدد المستلمين: ${ar(students.length)}\nحالة واتساب: ${wsConnected ? '✅ متصل' : '❌ غير متصل'}${wsSender ? `\nرقم المُرسل: +${wsSender}` : ''}`}
       </div>
 
-      {!wsConnected && !running && !finished && (
-        <button className="btn-action whatsapp-all" style={{ width: '100%', justifyContent: 'center', marginBottom: 12 }} onClick={() => setShowQR(true)}>
-          ربط WhatsApp
+      {note && (
+        <div className="alert ok" style={{ whiteSpace: 'pre-line' }}>{note}</div>
+      )}
+
+      <div style={{ background: 'var(--bg-card)', borderRadius: 12, padding: 16, margin: '12px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+        <strong style={{ color: 'var(--text-main)' }}>طريقة العمل:</strong>
+        <ol style={{ marginRight: 20, marginTop: 8, lineHeight: 2 }}>
+          <li>اضغط "إرسال البيانات ← الخادم المحلي"</li>
+          <li>يتم حفظ الرسائل في Supabase بحالة "قيد الانتظار"</li>
+          <li>اذهب إلى <strong>http://localhost:3001</strong></li>
+          <li>في الخادم المحلي، اضغط <strong>"🚀 إرسال الكل"</strong></li>
+          <li>شاهد شريط التقدم في الخادم المحلي مباشرة</li>
+        </ol>
+      </div>
+
+      {!saving && !done && (
+        <button type="button" className="btn-primary" onClick={saveToQueue} disabled={!template} style={{ width: '100%' }}>
+          📤 إرسال البيانات ← الخادم المحلي
         </button>
       )}
 
-      {(running || finished) && (
-        <>
-          <div className="mass-progress">
-            <div className="mass-progress-head">
-              <span>
-                {running ? 'جارٍ الإرسال...' : 'انتهت العملية'} — {ar(processed)} من{' '}
-                {ar(students.length)}
-              </span>
-              <strong>{ar(percent)}%</strong>
-            </div>
-            <div className="progress-bar-bg">
-              <div
-                className="progress-bar-fill"
-                style={{ width: `${percent}%`, background: 'var(--primary)' }}
-              />
-            </div>
-          </div>
-
-          <div className="mass-counters">
-            <div className="mass-counter ok">
-              <span className="label">أُرسلت بنجاح</span>
-              <span className="value">{ar(sent)}</span>
-            </div>
-            <div className="mass-counter bad">
-              <span className="label">فشل الإرسال</span>
-              <span className="value">{ar(failed)}</span>
-            </div>
-          </div>
-
-          <div className="mass-log">
-            {results.map((r, i) => (
-              <div className={`mass-log-row ${r.status === 'sent' ? 'opened' : r.status === 'cancelled' ? 'blocked' : 'blocked'}`} key={r.student_id || i}>
-                <span className="mass-log-name">{r.name}</span>
-                <span className="mass-log-phone">
-                  {r.phone ? displayGuardianPhone(r.phone) : 'بلا رقم'}
-                </span>
-                <span className="mass-log-status">
-                  {r.status === 'sent' ? 'أُرسلت' : r.status === 'cancelled' ? 'أُلغي' : `فشل — ${r.error || ''}`}
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {archiveNote && <div className="alert ok">{archiveNote}</div>}
-
-      {!running && !finished && (
-        <button type="button" className="btn-primary" onClick={run} disabled={!template}>
-          {wsConnected ? 'بدء الإرسال' : 'ربط WhatsApp أولاً'}
+      {!wsConnected && !saving && !done && (
+        <button className="btn-action whatsapp-all" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={() => setShowQR(true)}>
+          ربط WhatsApp (لاختبار الاتصال)
         </button>
       )}
 
-      {running && (
-        <button type="button" className="btn-primary" onClick={cancel} style={{ background: 'var(--danger)' }}>
-          ⏹ إيقاف الإرسال
-        </button>
+      {saving && (
+        <div style={{ textAlign: 'center', padding: 12 }}>
+          <div style={{ fontSize: '2rem', marginBottom: 8 }}>⏳</div>
+          جاري حفظ الرسائل في قاعدة البيانات...
+        </div>
       )}
 
-      {finished && (
-        <button type="button" className="btn-primary" onClick={onClose}>
-          إغلاق
+      {done && (
+        <button type="button" className="btn-primary" onClick={onClose} style={{ width: '100%' }}>
+          تم، إغلاق
         </button>
       )}
 
       {showQR && (
         <WhatsAppConnect
           onClose={() => setShowQR(false)}
-          onConnected={() => {
-            setWsConnected(true);
-            setShowQR(false);
-          }}
+          onConnected={() => { setWsConnected(true); setShowQR(false); }}
         />
       )}
     </Modal>

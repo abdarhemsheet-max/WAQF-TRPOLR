@@ -152,12 +152,32 @@ create index if not exists reports_teacher_idx on public.message_reports (teache
 create index if not exists reports_created_idx on public.message_reports (created_at desc);
 
 -- ------------------------------------------------------------
+-- 2.3) طابور الرسائل: الواجهة تُدرج، السيرفر المحلي يقرأ ويرسل
+-- ------------------------------------------------------------
+create table if not exists public.messages_queue (
+    id             uuid primary key default gen_random_uuid(),
+    batch_id       uuid not null default gen_random_uuid(),
+    phone          text not null,
+    message        text not null,
+    student_name   text not null default '',
+    status         text not null default 'pending'
+                   check (status in ('pending', 'sending', 'sent', 'failed')),
+    error          text not null default '',
+    created_at     timestamptz not null default now(),
+    finished_at    timestamptz
+);
+
+create index if not exists queue_status_idx on public.messages_queue (status);
+create index if not exists queue_batch_idx  on public.messages_queue (batch_id);
+
+-- ------------------------------------------------------------
 -- 3) تفعيل RLS
 -- ------------------------------------------------------------
 alter table public.users             enable row level security;
 alter table public.students          enable row level security;
 alter table public.message_templates enable row level security;
 alter table public.message_reports   enable row level security;
+alter table public.messages_queue    enable row level security;
 
 -- --- صلاحيات الأعمدة: عمود passcode غير قابل للقراءة إطلاقاً من العميل ---
 revoke all on public.users from anon, authenticated;
@@ -176,6 +196,7 @@ grant delete on public.users to anon, authenticated;
 grant all on public.students          to anon, authenticated;
 grant all on public.message_templates to anon, authenticated;
 grant all on public.message_reports   to anon, authenticated;
+grant all on public.messages_queue    to anon, authenticated;
 
 -- --- سياسات users ---
 drop policy if exists users_select on public.users;
@@ -228,6 +249,19 @@ create policy templates_update on public.message_templates
 drop policy if exists templates_delete on public.message_templates;
 create policy templates_delete on public.message_templates
     for delete to anon, authenticated using (is_locked = false);
+
+-- --- سياسات طابور الرسائل: يُقرأ ويُدرَج ويُحدَّث بحرية ---
+drop policy if exists queue_select on public.messages_queue;
+create policy queue_select on public.messages_queue
+    for select to anon, authenticated using (true);
+
+drop policy if exists queue_insert on public.messages_queue;
+create policy queue_insert on public.messages_queue
+    for insert to anon, authenticated with check (true);
+
+drop policy if exists queue_update on public.messages_queue;
+create policy queue_update on public.messages_queue
+    for update to anon, authenticated using (true) with check (true);
 
 -- --- سياسات التقارير: تُكتب ولا تُعدّل ولا تُحذف (سجل أرشيفي) ---
 drop policy if exists reports_select on public.message_reports;

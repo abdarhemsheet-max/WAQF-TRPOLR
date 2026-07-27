@@ -4,15 +4,10 @@ import { openGuardianWhatsapp } from '../utils/whatsapp.js';
 import { displayGuardianPhone, normalizeGuardianPhone } from '../utils/phone.js';
 import { EditIcon, TrashIcon, WhatsappBubbleIcon } from './Icons.jsx';
 
-/**
- * جدول الطلاب.
- * showTeacherColumn: عمود "المحفّظ" يظهر في لوحة الأدمن فقط.
- * نسبة الإنجاز قابلة للتعديل مباشرة من الجدول دون نموذج منفصل.
- * الإجراء الوحيد: إنشاء رسالة ولي الأمر بصيغة رسمية موجّهة لرقم وليّه.
- */
 export default function StudentsTable({
   students,
   showTeacherColumn = false,
+  showActions = true,
   onSort,
   onNoteChange,
   onNoteCommit,
@@ -58,7 +53,6 @@ export default function StudentsTable({
                     </span>
                   </td>
                 )}
-                {/* data-csv يحفظ صيغة النسبة النصية للتصدير مع بقاء الحقل رقمياً للتعديل */}
                 <td data-csv={arPercent(student.progress)}>
                   <div className="progress-wrapper">
                     <div className="progress-bar-bg">
@@ -112,15 +106,17 @@ export default function StudentsTable({
                       <WhatsappBubbleIcon />
                       إنشاء رسالة ولي الأمر بصيغة رسمية
                     </button>
-                    <button
-                      className="btn-action edit-btn"
-                      onClick={() => onEdit(student)}
-                      title="تعديل رقم الطالب ورقم ولي الأمر والبيانات"
-                    >
-                      <EditIcon />
-                      تعديل
-                    </button>
-                    {onDelete && (
+                    {showActions && onEdit && (
+                      <button
+                        className="btn-action edit-btn"
+                        onClick={() => onEdit(student)}
+                        title="تعديل بيانات الطالب"
+                      >
+                        <EditIcon />
+                        تعديل
+                      </button>
+                    )}
+                    {showActions && onDelete && (
                       <button
                         className="btn-action edit-btn delete"
                         onClick={() => onDelete(student.id, student.name)}

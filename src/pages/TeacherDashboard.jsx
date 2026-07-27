@@ -1,15 +1,11 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useStudents } from '../hooks/useStudents.js';
-import { useTemplates } from '../hooks/useTemplates.js';
 import TopBar from '../components/TopBar.jsx';
 import Toolbar from '../components/Toolbar.jsx';
-import StatsGrid from '../components/StatsGrid.jsx';
 import StudentsTable from '../components/StudentsTable.jsx';
 import AddStudentForm from '../components/AddStudentForm.jsx';
 import EditStudentForm from '../components/EditStudentForm.jsx';
-import MassMessaging from '../components/MassMessaging.jsx';
-import TemplateManager from '../components/TemplateManager.jsx';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
@@ -25,15 +21,11 @@ export default function TeacherDashboard() {
     changeProgress,
     commitProgress,
     addStudent,
-    replaceStudent,
-    deleteStudent
+    replaceStudent
   } = useStudents(user.id);
-  const { templates, refresh: refreshTemplates } = useTemplates(user);
 
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [messaging, setMessaging] = useState(false);
-  const [managingTemplates, setManagingTemplates] = useState(false);
 
   return (
     <div className="container">
@@ -55,14 +47,11 @@ export default function TeacherDashboard() {
           onQueryChange={setQuery}
           addLabel="إضافة طالب"
           onAdd={() => setAdding(true)}
-          onMassMessage={() => setMessaging(true)}
-          onTemplates={() => setManagingTemplates(true)}
+          isAdmin={false}
         />
       </div>
 
       {error && <div className="alert error">{error}</div>}
-
-      <StatsGrid students={visible} />
 
       {loading ? (
         <div className="table-container">
@@ -76,8 +65,7 @@ export default function TeacherDashboard() {
           onNoteCommit={commitNote}
           onProgressChange={changeProgress}
           onProgressCommit={commitProgress}
-          onEdit={setEditing}
-          onDelete={deleteStudent}
+          showActions={false}
         />
       )}
 
@@ -94,24 +82,6 @@ export default function TeacherDashboard() {
           student={editing}
           onClose={() => setEditing(null)}
           onSaved={replaceStudent}
-        />
-      )}
-
-      {messaging && (
-        <MassMessaging
-          students={visible}
-          templates={templates}
-          user={user}
-          onClose={() => setMessaging(false)}
-        />
-      )}
-
-      {managingTemplates && (
-        <TemplateManager
-          templates={templates}
-          user={user}
-          onClose={() => setManagingTemplates(false)}
-          onChanged={refreshTemplates}
         />
       )}
     </div>
