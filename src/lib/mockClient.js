@@ -182,6 +182,7 @@ class MockQuery {
         notes: clean(input.notes),
         guardian_phone: clean(input.guardian_phone),
         memorization_center: clean(input.memorization_center),
+        voice_rating: Number(input.voice_rating) || 0,
         teacher_id: input.teacher_id,
         created_at: now,
         updated_at: now

@@ -19,21 +19,21 @@ const SEED_USERS = [
 
 // عشرة طلاب للحلقة الأولى (نفس بيانات التصميم الأساسي)
 const SEED_STUDENTS = [
-  { student_number: '2001', name: 'أحمد محمود',    level: 'التمهيدي', matn: 'متن تحفة الأطفال', progress: 50,  notes: '',                      guardian_phone: '218912345601', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس' },
-  { student_number: '2002', name: 'سالم علي',      level: 'الأول',    matn: 'متن الجزرية',      progress: 16,  notes: 'يحتاج لمراجعة المخارج', guardian_phone: '218912345602', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس' },
-  { student_number: '2003', name: 'عمر خالد',      level: 'الثاني',   matn: 'متن الشاطبية',     progress: 20,  notes: '',                      guardian_phone: '218912345603', teacher_id: T1, memorization_center: 'مركز تحفيظ سيدي سالم' },
-  { student_number: '2004', name: 'محمد فرج',      level: 'الثالث',   matn: 'متن الدرة',        progress: 100, notes: 'ممتاز جداً',            guardian_phone: '218912345604', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس' },
-  { student_number: '2005', name: 'عبدالله حسن',   level: 'الأول',    matn: 'متن الجزرية',      progress: 50,  notes: '',                      guardian_phone: '218912345605', teacher_id: T1, memorization_center: 'مركز تحفيظ سيدي سالم' },
-  { student_number: '2006', name: 'يوسف إبراهيم',  level: 'التمهيدي', matn: 'متن تحفة الأطفال', progress: 20,  notes: '',                      guardian_phone: '218912345606', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس' },
-  { student_number: '2007', name: 'طارق زياد',     level: 'الثاني',   matn: 'متن الشاطبية',     progress: 16,  notes: 'غائب الأسبوع الماضي',   guardian_phone: '218912345607', teacher_id: T1, memorization_center: 'مركز تحفيظ سيدي سالم' },
-  { student_number: '2008', name: 'أيمن سعد',      level: 'الأول',    matn: 'متن الجزرية',      progress: 100, notes: '',                      guardian_phone: '218912345608', teacher_id: T1, memorization_center: '' },
-  { student_number: '2009', name: 'خالد وليد',     level: 'التمهيدي', matn: 'متن تحفة الأطفال', progress: 16,  notes: '',                      guardian_phone: '218912345609', teacher_id: T1, memorization_center: '' },
-  { student_number: '2011', name: 'مروان سعيد',    level: 'الثالث',   matn: 'متن الدرة',        progress: 50,  notes: '',                      guardian_phone: '218912345611', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس' },
+  { student_number: '2001', name: 'أحمد محمود',    level: 'التمهيدي', matn: 'متن تحفة الأطفال', progress: 50,  notes: '',                      guardian_phone: '218912345601', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس', voice_rating: 8 },
+  { student_number: '2002', name: 'سالم علي',      level: 'الأول',    matn: 'متن الجزرية',      progress: 16,  notes: 'يحتاج لمراجعة المخارج', guardian_phone: '218912345602', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس', voice_rating: 6 },
+  { student_number: '2003', name: 'عمر خالد',      level: 'الثاني',   matn: 'متن الشاطبية',     progress: 20,  notes: '',                      guardian_phone: '218912345603', teacher_id: T1, memorization_center: 'مركز تحفيظ سيدي سالم', voice_rating: 7 },
+  { student_number: '2004', name: 'محمد فرج',      level: 'الثالث',   matn: 'متن الدرة',        progress: 100, notes: 'ممتاز جداً',            guardian_phone: '218912345604', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس', voice_rating: 9 },
+  { student_number: '2005', name: 'عبدالله حسن',   level: 'الأول',    matn: 'متن الجزرية',      progress: 50,  notes: '',                      guardian_phone: '218912345605', teacher_id: T1, memorization_center: 'مركز تحفيظ سيدي سالم', voice_rating: 7 },
+  { student_number: '2006', name: 'يوسف إبراهيم',  level: 'التمهيدي', matn: 'متن تحفة الأطفال', progress: 20,  notes: '',                      guardian_phone: '218912345606', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس', voice_rating: 5 },
+  { student_number: '2007', name: 'طارق زياد',     level: 'الثاني',   matn: 'متن الشاطبية',     progress: 16,  notes: 'غائب الأسبوع الماضي',   guardian_phone: '218912345607', teacher_id: T1, memorization_center: 'مركز تحفيظ سيدي سالم', voice_rating: 0 },
+  { student_number: '2008', name: 'أيمن سعد',      level: 'الأول',    matn: 'متن الجزرية',      progress: 100, notes: '',                      guardian_phone: '218912345608', teacher_id: T1, memorization_center: '', voice_rating: 10 },
+  { student_number: '2009', name: 'خالد وليد',     level: 'التمهيدي', matn: 'متن تحفة الأطفال', progress: 16,  notes: '',                      guardian_phone: '218912345609', teacher_id: T1, memorization_center: '', voice_rating: 0 },
+  { student_number: '2011', name: 'مروان سعيد',    level: 'الثالث',   matn: 'متن الدرة',        progress: 50,  notes: '',                      guardian_phone: '218912345611', teacher_id: T1, memorization_center: 'مركز تحفيظ الأوقاف طرابلس', voice_rating: 8 },
   // الحلقة الثانية
-  { student_number: '3001', name: 'بدر ناصر',      level: 'الأول',    matn: 'متن الجزرية',      progress: 100, notes: 'أتم المتن كاملاً',      guardian_phone: '218913450001', teacher_id: T2, memorization_center: 'مركز تحفيظ الأوقاف طرابلس' },
-  { student_number: '3002', name: 'ريان مشعل',     level: 'التمهيدي', matn: 'متن تحفة الأطفال', progress: 20,  notes: '',                      guardian_phone: '218913450002', teacher_id: T2, memorization_center: '' },
-  { student_number: '3003', name: 'فهد العتيبي',   level: 'الثاني',   matn: 'متن الشاطبية',     progress: 50,  notes: '',                      guardian_phone: '218913450003', teacher_id: T2, memorization_center: 'مركز تحفيظ سيدي سالم' },
-  { student_number: '3004', name: 'ماجد الدوسري',  level: 'الثالث',   matn: 'متن الدرة',        progress: 16,  notes: 'بداية موفقة',           guardian_phone: '218913450004', teacher_id: T2, memorization_center: 'مركز تحفيظ سيدي سالم' }
+  { student_number: '3001', name: 'بدر ناصر',      level: 'الأول',    matn: 'متن الجزرية',      progress: 100, notes: 'أتم المتن كاملاً',      guardian_phone: '218913450001', teacher_id: T2, memorization_center: 'مركز تحفيظ الأوقاف طرابلس', voice_rating: 9 },
+  { student_number: '3002', name: 'ريان مشعل',     level: 'التمهيدي', matn: 'متن تحفة الأطفال', progress: 20,  notes: '',                      guardian_phone: '218913450002', teacher_id: T2, memorization_center: '', voice_rating: 0 },
+  { student_number: '3003', name: 'فهد العتيبي',   level: 'الثاني',   matn: 'متن الشاطبية',     progress: 50,  notes: '',                      guardian_phone: '218913450003', teacher_id: T2, memorization_center: 'مركز تحفيظ سيدي سالم', voice_rating: 7 },
+  { student_number: '3004', name: 'ماجد الدوسري',  level: 'الثالث',   matn: 'متن الدرة',        progress: 16,  notes: 'بداية موفقة',           guardian_phone: '218913450004', teacher_id: T2, memorization_center: 'مركز تحفيظ سيدي سالم', voice_rating: 6 }
 ];
 
 function buildSeed() {

@@ -12,7 +12,8 @@ export const TEMPLATE_VARIABLES = [
   { token: '{الملاحظة}', label: 'الملاحظة', resolve: (s) => String(s.notes ?? '').trim() },
   { token: '{المحفظ}', label: 'اسم المحفّظ', resolve: (s) => s.teacher?.name ?? '' },
   { token: '{الحلقة}', label: 'رمز الحلقة', resolve: (s) => s.teacher?.halaqa_number ?? '' },
-  { token: '{مركز_التحفيظ}', label: 'مركز التحفيظ', resolve: (s) => s.memorization_center ?? '' }
+  { token: '{مركز_التحفيظ}', label: 'مركز التحفيظ', resolve: (s) => s.memorization_center ?? '' },
+  { token: '{تقييم_الصوت}', label: 'تقييم الصوت', resolve: (s) => String(s.voice_rating ?? '0') }
 ];
 
 /**
@@ -73,5 +74,6 @@ export const PREVIEW_STUDENT = {
   matn: 'متن الجزرية',
   notes: 'مثال على ملاحظة',
   memorization_center: 'مركز تحفيظ الأوقاف طرابلس',
+  voice_rating: 8,
   teacher: { name: 'عبدالرحمن الشمري', halaqa_number: 'الأولى' }
 };

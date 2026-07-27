@@ -17,7 +17,7 @@ export default function StudentsTable({
   onEdit,
   onDelete
 }) {
-  const columnCount = showTeacherColumn ? 7 : 6;
+  const columnCount = showTeacherColumn ? 8 : 7;
 
   return (
     <div className="table-container">
@@ -27,6 +27,7 @@ export default function StudentsTable({
             <th>اسم الطالب</th>
             <th>المستوى</th>
             <th>مركز التحفيظ</th>
+            <th>تقييم الصوت</th>
             {showTeacherColumn && <th>المحفّظ</th>}
             <th onClick={onSort} title="انقر لترتيب الطلاب حسب الإنجاز">
               نسبة الإنجاز ⇅
@@ -47,6 +48,9 @@ export default function StudentsTable({
                 </td>
                 <td>
                   <span className="center-badge">{student.memorization_center || '—'}</span>
+                </td>
+                <td>
+                  <span className="voice-badge">{student.voice_rating ?? 0}<span style={{color:'#666',fontSize:'.7rem'}}>/10</span></span>
                 </td>
                 {showTeacherColumn && (
                   <td>

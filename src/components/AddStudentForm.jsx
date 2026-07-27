@@ -9,7 +9,8 @@ const EMPTY = {
   level: LEVELS[0].level,
   notes: '',
   guardian_phone: '',
-  memorization_center: ''
+  memorization_center: '',
+  voice_rating: 0
 };
 
 /**
@@ -59,6 +60,7 @@ export default function AddStudentForm({ teacherId, onClose, onSaved }) {
         notes: form.notes.trim(),
         guardian_phone: normalizeGuardianPhone(form.guardian_phone),
         memorization_center: form.memorization_center.trim(),
+        voice_rating: Number(form.voice_rating) || 0,
         teacher_id: teacherId
       })
       .select('*, teacher:users!students_teacher_id_fkey(id, name, halaqa_number)')
@@ -119,6 +121,19 @@ export default function AddStudentForm({ teacherId, onClose, onSaved }) {
             value={form.memorization_center}
             onChange={(e) => set('memorization_center', e.target.value)}
             placeholder="مثال: مركز تحفيظ الأوقاف طرابلس"
+          />
+        </div>
+
+        <div className="field">
+          <label>تقييم الصوت (من 10)</label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.5"
+            value={form.voice_rating}
+            onChange={(e) => set('voice_rating', e.target.value)}
+            style={{ direction: 'ltr', textAlign: 'left', width: 100 }}
           />
         </div>
 

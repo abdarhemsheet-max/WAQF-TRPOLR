@@ -46,6 +46,8 @@ create table if not exists public.students (
     notes           text not null default '',
     guardian_phone      text not null default '',   -- رقم ولي الأمر بالصيغة الدولية بلا +
     memorization_center text not null default '',   -- مركز التحفيظ
+    voice_rating        numeric(3,1) not null default 0
+                        check (voice_rating >= 0 and voice_rating <= 10),  -- تقييم الصوت من 10
     teacher_id          uuid references public.users(id) on delete set null,
     created_at      timestamptz not null default now(),
     updated_at      timestamptz not null default now()
@@ -58,6 +60,10 @@ alter table public.students
 -- ترقية قواعد البيانات المنشأة قبل إضافة مركز التحفيظ
 alter table public.students
     add column if not exists memorization_center text not null default '';
+
+-- ترقية قواعد البيانات المنشأة قبل إضافة تقييم الصوت
+alter table public.students
+    add column if not exists voice_rating numeric(3,1) not null default 0;
 
 create index if not exists students_teacher_idx on public.students (teacher_id);
 create index if not exists students_number_idx  on public.students (student_number);

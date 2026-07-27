@@ -33,7 +33,8 @@ export default function EditStudentForm({ student, onClose, onSaved }) {
     level: student.level ?? LEVELS[0].level,
     guardian_phone: student.guardian_phone ?? '',
     notes: student.notes ?? '',
-    memorization_center: student.memorization_center ?? ''
+    memorization_center: student.memorization_center ?? '',
+    voice_rating: student.voice_rating ?? 0
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -85,7 +86,8 @@ export default function EditStudentForm({ student, onClose, onSaved }) {
         ? normalizeGuardianPhone(form.guardian_phone)
         : '',
       notes: form.notes.trim(),
-      memorization_center: form.memorization_center.trim()
+      memorization_center: form.memorization_center.trim(),
+      voice_rating: Number(form.voice_rating) || 0
     };
 
     const { data, error: dbError } = await supabase
@@ -149,6 +151,19 @@ export default function EditStudentForm({ student, onClose, onSaved }) {
             value={form.memorization_center}
             onChange={(e) => set('memorization_center', e.target.value)}
             placeholder="مثال: مركز تحفيظ الأوقاف طرابلس"
+          />
+        </div>
+
+        <div className="field">
+          <label>تقييم الصوت (من 10)</label>
+          <input
+            type="number"
+            min="0"
+            max="10"
+            step="0.5"
+            value={form.voice_rating}
+            onChange={(e) => set('voice_rating', e.target.value)}
+            style={{ direction: 'ltr', textAlign: 'left', width: 100 }}
           />
         </div>
 
