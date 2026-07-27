@@ -84,55 +84,49 @@ export default function MassMessaging({ students, templates, user, onClose, onAr
     const startedAt = new Date().toISOString();
     const collected = [];
 
-    const messages = students.map((s) => ({
-      student_id: s.id,
-      name: s.name,
+    const messageData = students.map((s) => ({
       phone: normalizeGuardianPhone(s.guardian_phone),
       message: renderTemplate(template.body, s)
+    }));
+
+    const studentLookup = students.map((s) => ({
+      id: s.id, name: s.name, phone: s.guardian_phone
     }));
 
     const controller = new AbortController();
     abortRef.current = controller;
 
     try {
-      await sendBulkStream(messages, (data) => {
-        if (data.type === 'sent' || data.type === 'failed') {
+      await sendBulkStream(messageData, (data) => {
+        if (data.type === 'sent') {
+          const s = studentLookup[data.index];
           collected.push({
-            student_id: data.student_id,
-            name: data.name,
-            phone: data.phone,
-            status: data.type,
-            error: data.error || null,
+            student_id: s?.id, name: s?.name, phone: s?.phone,
+            status: 'sent', at: new Date().toISOString()
+          });
+          setResults([...collected]);
+        }
+        if (data.type === 'failed') {
+          const s = studentLookup[data.index];
+          collected.push({
+            student_id: s?.id, name: s?.name, phone: s?.phone,
+            status: 'failed', error: data.error || 'فشل الإرسال',
             at: new Date().toISOString()
           });
           setResults([...collected]);
         }
-        if (data.type === 'done') {
-          setResults(data.results);
-        }
       });
     } catch (thrown) {
-      if (cancelRef.current) {
-        collected.push(...messages.slice(collected.length).map((m) => ({
-          student_id: m.student_id,
-          name: m.name,
-          phone: m.phone,
-          status: 'cancelled',
-          error: 'أُلغي من المستخدم',
+      const remaining = studentLookup.slice(collected.length);
+      for (const s of remaining) {
+        collected.push({
+          student_id: s.id, name: s.name, phone: s.phone,
+          status: cancelRef.current ? 'cancelled' : 'failed',
+          error: cancelRef.current ? 'أُلغي من المستخدم' : String(thrown.message ?? thrown),
           at: new Date().toISOString()
-        })));
-        setResults([...collected]);
-      } else {
-        collected.push(...messages.slice(collected.length).map((m) => ({
-          student_id: m.student_id,
-          name: m.name,
-          phone: m.phone,
-          status: 'failed',
-          error: String(thrown.message ?? thrown),
-          at: new Date().toISOString()
-        })));
-        setResults([...collected]);
+        });
       }
+      setResults([...collected]);
     }
 
     setRunning(false);

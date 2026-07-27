@@ -235,18 +235,24 @@ app.post('/api/whatsapp/send-bulk', async (req, res) => {
   for (let i = 0; i < messages.length; i++) {
     if (aborted) break;
 
-    const { phone, message, student_id, name } = messages[i];
+    const { phone, message } = messages[i];
+    if (!phone || !message) {
+      results.push({ index: i, status: 'failed', error: 'رقم أو نص مفقود' });
+      res.write(`data: ${JSON.stringify({ type: 'failed', index: i, total: messages.length, error: 'رقم أو نص مفقود' })}\n\n`);
+      continue;
+    }
+
     const chatId = phone.includes('@c.us') ? phone : `${phone}@c.us`;
 
     try {
       await client.sendMessage(chatId, message);
-      results.push({ student_id, name, phone, status: 'sent', at: new Date().toISOString() });
-      res.write(`data: ${JSON.stringify({ type: 'sent', index: i, total: messages.length, student_id, name, phone })}\n\n`);
-      console.log(`[SENT] ${i + 1}/${messages.length} — ${name}`);
+      results.push({ index: i, status: 'sent' });
+      res.write(`data: ${JSON.stringify({ type: 'sent', index: i, total: messages.length })}\n\n`);
+      console.log(`[SENT] ${i + 1}/${messages.length}`);
     } catch (err) {
-      results.push({ student_id, name, phone, status: 'failed', error: err.message, at: new Date().toISOString() });
-      res.write(`data: ${JSON.stringify({ type: 'failed', index: i, total: messages.length, student_id, name, phone, error: err.message })}\n\n`);
-      console.log(`[FAILED] ${i + 1}/${messages.length} — ${name}: ${err.message}`);
+      results.push({ index: i, status: 'failed', error: err.message });
+      res.write(`data: ${JSON.stringify({ type: 'failed', index: i, total: messages.length, error: err.message })}\n\n`);
+      console.log(`[FAILED] ${i + 1}/${messages.length}: ${err.message}`);
     }
 
     if (i < messages.length - 1 && !aborted) {
@@ -256,7 +262,7 @@ app.post('/api/whatsapp/send-bulk', async (req, res) => {
 
   const sentCount = results.filter((r) => r.status === 'sent').length;
   console.log(`[DONE] تم الإرسال: ${sentCount}/${messages.length}`);
-  res.write(`data: ${JSON.stringify({ type: 'done', results })}\n\n`);
+  res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
   res.end();
 });
 
