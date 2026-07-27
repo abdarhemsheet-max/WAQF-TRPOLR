@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useConnection } from '../hooks/useConnection.js';
 import { ar } from '../utils/numbers.js';
-import { ChartIcon, LogoutIcon, OfflineIcon, ShieldIcon, TeacherIcon } from './Icons.jsx';
+import { ChartIcon, LogoutIcon, OfflineIcon } from './Icons.jsx';
 
 export default function TopBar() {
   const { user, logout, isAdmin } = useAuth();
@@ -18,13 +18,15 @@ export default function TopBar() {
 
   return (
     <div className="topbar">
-      <div className="who">
-        <div className="avatar">{isAdmin ? <ShieldIcon /> : <TeacherIcon />}</div>
-        <div>
-          <div className="name">{user.name}</div>
-          <div className="role">
-            {isAdmin ? 'مدير النظام' : `محفّظ — الحلقة ${user.halaqa_number ?? ''}`}
-          </div>
+      <div className="topbar-right">
+        <div className="dept-name">مكتب أوقاف طرابلس المركز</div>
+        <div className="dept-sub">قسم شؤون القرآن الكريم والسنة النبوية</div>
+      </div>
+
+      <div className="topbar-center">
+        <div className="name">{isAdmin ? 'مدير النظام' : user.name}</div>
+        <div className="role">
+          {isAdmin ? '' : `محفّظ — الحلقة ${user.halaqa_number ?? ''}`}
         </div>
       </div>
 

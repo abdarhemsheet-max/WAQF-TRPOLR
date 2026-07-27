@@ -104,7 +104,7 @@ export default function StudentsTable({
                       }
                     >
                       <WhatsappBubbleIcon />
-                      إنشاء رسالة ولي الأمر بصيغة رسمية
+                      إنشاء رسالة
                     </button>
                     {showActions && onEdit && (
                       <button
