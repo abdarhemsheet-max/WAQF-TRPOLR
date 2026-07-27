@@ -65,7 +65,19 @@ function getPuppeteerConfig() {
     ]
   };
 
-  const possiblePaths = [
+  const bundledPath = (() => {
+    try {
+      const p = require('puppeteer');
+      return p.executablePath();
+    } catch { return null; }
+  })();
+
+  if (bundledPath && fs.existsSync(bundledPath)) {
+    console.log(`[CHROME] استخدام النسخة المضمنة من puppeteer: ${bundledPath}`);
+    return config;
+  }
+
+  const systemPaths = [
     process.env.CHROME_PATH,
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
@@ -77,10 +89,10 @@ function getPuppeteerConfig() {
     '/snap/bin/chromium'
   ];
 
-  for (const p of possiblePaths) {
+  for (const p of systemPaths) {
     if (p && fs.existsSync(p)) {
       config.executablePath = p;
-      console.log(`[CHROME] تم العثور على Chrome في: ${p}`);
+      console.log(`[CHROME] تم العثور على Chrome/Edge في النظام: ${p}`);
       break;
     }
   }
