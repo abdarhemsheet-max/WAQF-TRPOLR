@@ -32,7 +32,7 @@ export default function Toolbar({
       {isAdmin && (
         <button className="btn-action whatsapp-all" onClick={onMassMessage}>
           <WhatsappBubbleIcon />
-          مراسلة الجميع
+          تصدير رسائل CSV
         </button>
       )}
 

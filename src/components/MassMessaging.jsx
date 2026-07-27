@@ -1,79 +1,50 @@
-import { useCallback, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient.js';
-import { getStatus } from '../lib/whatsappService.js';
+import { useState } from 'react';
 import { ar } from '../utils/numbers.js';
-import { normalizeGuardianPhone } from '../utils/phone.js';
+import { normalizeGuardianPhone, displayGuardianPhone } from '../utils/phone.js';
 import { renderTemplate } from '../utils/templates.js';
 import Modal from './Modal.jsx';
-import WhatsAppConnect from './WhatsAppConnect.jsx';
+
+function downloadCSV(rows, filename) {
+  const BOM = '\uFEFF';
+  const header = 'اسم الطالب,رقم ولي الأمر,الرسالة';
+  const lines = rows.map((r) => {
+    const phone = displayGuardianPhone(r.phone);
+    const msg = r.message.replace(/,/g, '،').replace(/\n/g, ' ');
+    return `${r.name},${phone},${msg}`;
+  });
+  const csv = BOM + header + '\n' + lines.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 export default function MassMessaging({ students, templates, user, onClose }) {
   const usable = templates.length ? templates : [];
   const [templateId, setTemplateId] = useState(usable[0]?.id ?? '');
-  const [saving, setSaving] = useState(false);
-  const [done, setDone] = useState(false);
-  const [note, setNote] = useState('');
-  const [wsConnected, setWsConnected] = useState(false);
-  const [wsSender, setWsSender] = useState('');
-  const [showQR, setShowQR] = useState(false);
-
-  const checkStatus = useCallback(() => {
-    getStatus().then((d) => {
-      setWsConnected(d.ready);
-      setWsSender(d.sender || '');
-    }).catch(() => setWsConnected(false));
-  }, []);
-
-  useEffect(() => {
-    checkStatus();
-    const id = setInterval(checkStatus, 5000);
-    return () => clearInterval(id);
-  }, [checkStatus]);
+  const [exported, setExported] = useState(false);
 
   const template = usable.find((t) => t.id === templateId) ?? usable[0];
 
-  const saveToQueue = async () => {
+  const handleExport = () => {
     if (!template) return;
-
-    if (!window.confirm(`تأكيد تجهيز ${ar(students.length)} رسالة وإرسالها إلى طابور السيرفر المحلي؟`)) return;
-
-    setSaving(true);
-    setDone(false);
-    setNote('');
-
-    const messages = students.map((s) => ({
+    const rows = students.map((s) => ({
+      name: s.name,
       phone: normalizeGuardianPhone(s.guardian_phone),
-      message: renderTemplate(template.body, s),
-      student_name: s.name
+      message: renderTemplate(template.body, s)
     }));
-
-    const batchId = crypto.randomUUID();
-
-    const rows = messages.map((m) => ({
-      batch_id: batchId,
-      phone: m.phone,
-      message: m.message,
-      student_name: m.student_name,
-      status: 'pending'
-    }));
-
-    try {
-      const { error } = await supabase.from('messages_queue').insert(rows);
-      if (error) {
-        setNote('فشل حفظ الرسائل في Supabase: ' + error.message);
-      } else {
-        setNote(`✅ تم حفظ ${ar(rows.length)} رسالة في طابور الإرسال.\n\nالآن اذهب إلى الخادم المحلي:\nhttp://localhost:3001\nواضغط "إرسال الكل".`);
-        setDone(true);
-      }
-    } catch (err) {
-      setNote('خطأ: ' + (err.message || 'فشل الاتصال'));
-    }
-
-    setSaving(false);
+    const now = new Date().toISOString().slice(0, 10);
+    downloadCSV(rows, `رسائل_واتساب_${now}.csv`);
+    setExported(true);
   };
 
   return (
-    <Modal title="المراسلة الجماعية" onClose={saving ? () => {} : onClose}>
+    <Modal title="تصدير رسائل المجموعة" onClose={onClose}>
       {!usable.length && (
         <div className="alert error">لا توجد قوالب رسائل. أنشئ قالباً أولاً من زر «القوالب».</div>
       )}
@@ -83,7 +54,7 @@ export default function MassMessaging({ students, templates, user, onClose }) {
         <select
           value={templateId}
           onChange={(e) => setTemplateId(e.target.value)}
-          disabled={saving || done}
+          disabled={exported}
         >
           {usable.map((t) => (
             <option key={t.id} value={t.id}>
@@ -95,54 +66,25 @@ export default function MassMessaging({ students, templates, user, onClose }) {
       </div>
 
       <div className="alert ok" style={{ whiteSpace: 'pre-line' }}>
-        {`عدد المستلمين: ${ar(students.length)}\nحالة واتساب: ${wsConnected ? '✅ متصل' : '❌ غير متصل'}${wsSender ? `\nرقم المُرسل: +${wsSender}` : ''}`}
+        {`عدد المستلمين: ${ar(students.length)}\nسيتم تصدير ملف CSV يحتوي على:\n• اسم الطالب\n• رقم ولي الأمر (بالصيغة الدولية)\n• نص الرسالة الجاهز`}
       </div>
 
-      {note && (
-        <div className="alert ok" style={{ whiteSpace: 'pre-line' }}>{note}</div>
-      )}
-
-      <div style={{ background: 'var(--bg-card)', borderRadius: 12, padding: 16, margin: '12px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-        <strong style={{ color: 'var(--text-main)' }}>طريقة العمل:</strong>
-        <ol style={{ marginRight: 20, marginTop: 8, lineHeight: 2 }}>
-          <li>اضغط "إرسال البيانات ← الخادم المحلي"</li>
-          <li>يتم حفظ الرسائل في Supabase بحالة "قيد الانتظار"</li>
-          <li>اذهب إلى <strong>http://localhost:3001</strong></li>
-          <li>في الخادم المحلي، اضغط <strong>"🚀 إرسال الكل"</strong></li>
-          <li>شاهد شريط التقدم في الخادم المحلي مباشرة</li>
-        </ol>
-      </div>
-
-      {!saving && !done && (
-        <button type="button" className="btn-primary" onClick={saveToQueue} disabled={!template} style={{ width: '100%' }}>
-          📤 إرسال البيانات ← الخادم المحلي
-        </button>
-      )}
-
-      {!wsConnected && !saving && !done && (
-        <button className="btn-action whatsapp-all" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={() => setShowQR(true)}>
-          ربط WhatsApp (لاختبار الاتصال)
-        </button>
-      )}
-
-      {saving && (
-        <div style={{ textAlign: 'center', padding: 12 }}>
-          <div style={{ fontSize: '2rem', marginBottom: 8 }}>⏳</div>
-          جاري حفظ الرسائل في قاعدة البيانات...
+      {exported && (
+        <div className="alert ok">
+          ✅ تم تصدير الملف. استورده يدوياً في خادم واتساب المحلي.
         </div>
       )}
 
-      {done && (
-        <button type="button" className="btn-primary" onClick={onClose} style={{ width: '100%' }}>
-          تم، إغلاق
+      {!exported && (
+        <button type="button" className="btn-primary" onClick={handleExport} disabled={!template} style={{ width: '100%' }}>
+          📥 تحميل ملف CSV
         </button>
       )}
 
-      {showQR && (
-        <WhatsAppConnect
-          onClose={() => setShowQR(false)}
-          onConnected={() => { setWsConnected(true); setShowQR(false); }}
-        />
+      {exported && (
+        <button type="button" className="btn-primary" onClick={onClose} style={{ width: '100%' }}>
+          تم، إغلاق
+        </button>
       )}
     </Modal>
   );
