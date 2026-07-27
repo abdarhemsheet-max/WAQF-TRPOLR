@@ -280,7 +280,7 @@ $$;
 -- 5) بيانات أولية (غيّر رموز الدخول قبل الاستخدام الفعلي)
 -- ------------------------------------------------------------
 insert into public.users (name, role, passcode, halaqa_number)
-values ('عبد المجيد', 'admin', '20262026', null)
+values ('عبدالمجيد', 'admin', '20262026', null)
 on conflict do nothing;
 
 insert into public.users (name, role, passcode, halaqa_number)

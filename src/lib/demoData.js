@@ -12,7 +12,7 @@ const T1 = 'demo-teacher-0001';
 const T2 = 'demo-teacher-0002';
 
 const SEED_USERS = [
-  { id: ADMIN_ID, name: 'عبد المجيد', role: 'admin', passcode: '20262026', halaqa_number: null },
+  { id: ADMIN_ID, name: 'عبدالمجيد', role: 'admin', passcode: '20262026', halaqa_number: null },
   { id: T1, name: 'عبدالرحمن الشمري', role: 'teacher', passcode: 'T-101', halaqa_number: 'الأولى' },
   { id: T2, name: 'سعد الحربي', role: 'teacher', passcode: 'T-102', halaqa_number: 'الثانية' }
 ];
@@ -113,7 +113,7 @@ export function resetDemoDb() {
 }
 
 export const DEMO_ACCOUNTS = [
-  { role: 'أدمن', name: 'عبد المجيد', passcode: '20262026' },
+  { role: 'أدمن', name: 'عبدالمجيد', passcode: '20262026' },
   { role: 'محفّظ', name: 'عبدالرحمن الشمري', passcode: 'T-101' },
   { role: 'محفّظ', name: 'سعد الحربي', passcode: 'T-102' }
 ];
