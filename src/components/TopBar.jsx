@@ -19,8 +19,8 @@ export default function TopBar() {
   return (
     <div className="topbar">
       <div className="topbar-right">
-        <div className="dept-name">مكتب أوقاف طرابلس المركز</div>
-        <div className="dept-sub">قسم شؤون القرآن الكريم والسنة النبوية</div>
+        <div className="dept-name">دورة حفاظ الوحيين السادسة</div>
+        <div className="dept-sub">مكتب أوقاف طرابلس المركز · قسم شؤون القرآن الكريم والسنة النبوية</div>
       </div>
 
       <div className="topbar-center">
@@ -48,10 +48,12 @@ export default function TopBar() {
           </button>
         )}
 
-        <button className="btn-action" onClick={() => navigate('/dashboard')}>
-          <ChartIcon style={{ width: 16, height: 16 }} />
-          الإحصائيات
-        </button>
+        {isAdmin && (
+          <button className="btn-action" onClick={() => navigate('/dashboard')}>
+            <ChartIcon style={{ width: 16, height: 16 }} />
+            الإحصائيات
+          </button>
+        )}
         <button className="btn-action" onClick={() => navigate('/gateway')}>
           البوابة
         </button>

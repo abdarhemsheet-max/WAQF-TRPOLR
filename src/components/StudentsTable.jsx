@@ -8,6 +8,7 @@ export default function StudentsTable({
   students,
   showTeacherColumn = false,
   showActions = true,
+  showGuardianMessage = true,
   onSort,
   onNoteChange,
   onNoteCommit,
@@ -94,18 +95,20 @@ export default function StudentsTable({
                 </td>
                 <td>
                   <div className="row-actions">
-                    <button
-                      className={`btn-whatsapp guardian${phone ? '' : ' no-phone'}`}
-                      onClick={() => openGuardianWhatsapp(student)}
-                      title={
-                        phone
-                          ? `إرسال إلى ${displayGuardianPhone(phone)}`
-                          : 'لا يوجد رقم لولي الأمر — سيُفتح منتقي جهات الاتصال'
-                      }
-                    >
-                      <WhatsappBubbleIcon />
-                      إنشاء رسالة
-                    </button>
+                    {showGuardianMessage && (
+                      <button
+                        className={`btn-whatsapp guardian${phone ? '' : ' no-phone'}`}
+                        onClick={() => openGuardianWhatsapp(student)}
+                        title={
+                          phone
+                            ? `إرسال إلى ${displayGuardianPhone(phone)}`
+                            : 'لا يوجد رقم لولي الأمر — سيُفتح منتقي جهات الاتصال'
+                        }
+                      >
+                        <WhatsappBubbleIcon />
+                        إنشاء رسالة
+                      </button>
+                    )}
                     {showActions && onEdit && (
                       <button
                         className="btn-action edit-btn"

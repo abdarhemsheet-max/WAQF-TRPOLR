@@ -30,25 +30,27 @@ export default function Gateway() {
           <div className="icon-circle">
             <BookIcon />
           </div>
-          <h2>مسابقة دورة الوحيين (السابعة)</h2>
+          <h2>دورة حفاظ الوحيين السادسة</h2>
           <p>متابعة إنجاز الطلاب في المتون المقررة</p>
         </div>
 
-        <div
-          className="gateway-card"
-          onClick={() => navigate('/dashboard')}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') navigate('/dashboard');
-          }}
-        >
-          <div className="icon-circle">
-            <ChartIcon />
+        {isAdmin && (
+          <div
+            className="gateway-card"
+            onClick={() => navigate('/dashboard')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') navigate('/dashboard');
+            }}
+          >
+            <div className="icon-circle">
+              <ChartIcon />
+            </div>
+            <h2>لوحة التحكم الإحصائية</h2>
+            <p>أفضل عشرة طلاب وسجل عمليات المراسلة</p>
           </div>
-          <h2>لوحة التحكم الإحصائية</h2>
-          <p>أفضل عشرة طلاب وسجل عمليات المراسلة</p>
-        </div>
+        )}
       </div>
     </div>
   );

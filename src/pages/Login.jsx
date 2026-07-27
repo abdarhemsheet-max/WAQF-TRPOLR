@@ -30,7 +30,7 @@ export default function Login() {
   return (
     <div className="auth-screen">
       <div className="auth-card">
-        <h1>دورة تجهيزية لحفاظ الوحيين (السادسة)</h1>
+        <h1>دورة حفاظ الوحيين السادسة</h1>
         <p className="subtitle">سجّل الدخول للمتابعة</p>
 
         <form onSubmit={handleSubmit}>

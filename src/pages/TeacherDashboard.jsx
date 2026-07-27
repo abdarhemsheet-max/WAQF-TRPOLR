@@ -21,7 +21,8 @@ export default function TeacherDashboard() {
     changeProgress,
     commitProgress,
     addStudent,
-    replaceStudent
+    replaceStudent,
+    deleteStudent
   } = useStudents(user.id);
 
   const [adding, setAdding] = useState(false);
@@ -65,7 +66,10 @@ export default function TeacherDashboard() {
           onNoteCommit={commitNote}
           onProgressChange={changeProgress}
           onProgressCommit={commitProgress}
-          showActions={false}
+          showActions
+          onEdit={setEditing}
+          onDelete={deleteStudent}
+          showGuardianMessage={false}
         />
       )}
 
