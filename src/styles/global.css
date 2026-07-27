@@ -113,6 +113,8 @@ tbody tr:hover { background: var(--glass-hover); }
 
 .row-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .btn-action.edit-btn { padding: 8px 14px; font-size: clamp(0.75rem, 2vw, 0.85rem); border-radius: 8px; }
+.btn-action.edit-btn.delete { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border-color: rgba(239, 68, 68, 0.3); }
+.btn-action.edit-btn.delete:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
 .conn-badge {
     display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px;

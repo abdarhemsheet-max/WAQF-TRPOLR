@@ -25,7 +25,8 @@ export default function TeacherDashboard() {
     changeProgress,
     commitProgress,
     addStudent,
-    replaceStudent
+    replaceStudent,
+    deleteStudent
   } = useStudents(user.id);
   const { templates, refresh: refreshTemplates } = useTemplates(user);
 
@@ -76,6 +77,7 @@ export default function TeacherDashboard() {
           onProgressChange={changeProgress}
           onProgressCommit={commitProgress}
           onEdit={setEditing}
+          onDelete={deleteStudent}
         />
       )}
 

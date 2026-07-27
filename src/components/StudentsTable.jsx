@@ -2,7 +2,7 @@ import { ar, arPercent } from '../utils/numbers.js';
 import { progressColor } from '../utils/levels.js';
 import { openGuardianWhatsapp } from '../utils/whatsapp.js';
 import { displayGuardianPhone, normalizeGuardianPhone } from '../utils/phone.js';
-import { EditIcon, WhatsappBubbleIcon } from './Icons.jsx';
+import { EditIcon, TrashIcon, WhatsappBubbleIcon } from './Icons.jsx';
 
 /**
  * جدول الطلاب.
@@ -18,7 +18,8 @@ export default function StudentsTable({
   onNoteCommit,
   onProgressChange,
   onProgressCommit,
-  onEdit
+  onEdit,
+  onDelete
 }) {
   const columnCount = showTeacherColumn ? 6 : 5;
 
@@ -119,6 +120,16 @@ export default function StudentsTable({
                       <EditIcon />
                       تعديل
                     </button>
+                    {onDelete && (
+                      <button
+                        className="btn-action edit-btn delete"
+                        onClick={() => onDelete(student.id, student.name)}
+                        title="حذف الطالب"
+                      >
+                        <TrashIcon />
+                        حذف
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

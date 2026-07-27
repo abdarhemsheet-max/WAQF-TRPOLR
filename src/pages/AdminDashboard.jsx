@@ -4,6 +4,7 @@ import { useStudents } from '../hooks/useStudents.js';
 import { useTemplates } from '../hooks/useTemplates.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ar } from '../utils/numbers.js';
+import { TrashIcon } from '../components/Icons.jsx';
 import TopBar from '../components/TopBar.jsx';
 import Toolbar from '../components/Toolbar.jsx';
 import StatsGrid from '../components/StatsGrid.jsx';
@@ -27,6 +28,7 @@ export default function AdminDashboard() {
     changeProgress,
     commitProgress,
     replaceStudent,
+    deleteStudent,
     refresh
   } = useStudents(null);
   const { templates, refresh: refreshTemplates } = useTemplates(user);
@@ -61,6 +63,21 @@ export default function AdminDashboard() {
 
   const handleTeacherSaved = (teacher) => {
     setTeachers((list) => [...list, { ...teacher, student_count: 0 }]);
+    refresh();
+  };
+
+  const handleDeleteTeacher = async (id, name, studentCount) => {
+    if (studentCount > 0) {
+      alert(`لا يمكن حذف المحفّظ "${name}" لأن لديه ${ar(studentCount)} طالباً مسجّلين.`);
+      return;
+    }
+    if (!confirm(`هل أنت متأكد من حذف المحفّظ "${name}"؟`)) return;
+    const { error: dbError } = await supabase.from('users').delete().eq('id', id);
+    if (dbError) {
+      alert('تعذّر حذف المحفّظ: ' + dbError.message);
+      return;
+    }
+    setTeachers((list) => list.filter((t) => t.id !== id));
     refresh();
   };
 
@@ -107,6 +124,7 @@ export default function AdminDashboard() {
           onProgressChange={changeProgress}
           onProgressCommit={commitProgress}
           onEdit={setEditing}
+          onDelete={deleteStudent}
         />
       )}
 
@@ -131,12 +149,13 @@ export default function AdminDashboard() {
                   <th>اسم المحفّظ</th>
                   <th>رمز الحلقة</th>
                   <th>عدد الطلاب</th>
+                  <th>إجراءات</th>
                 </tr>
               </thead>
               <tbody>
                 {teachers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="empty-state">لا يوجد محفّظون بعد</td>
+                    <td colSpan={5} className="empty-state">لا يوجد محفّظون بعد</td>
                   </tr>
                 ) : (
                   teachers.map((t, i) => (
@@ -145,6 +164,16 @@ export default function AdminDashboard() {
                       <td>{t.name}</td>
                       <td>{t.halaqa_number}</td>
                       <td><span className="level-badge">{ar(t.student_count)}</span></td>
+                      <td>
+                        <button
+                          className="btn-action edit-btn delete"
+                          onClick={() => handleDeleteTeacher(t.id, t.name, t.student_count)}
+                          title="حذف المحفّظ"
+                        >
+                          <TrashIcon />
+                          حذف
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}

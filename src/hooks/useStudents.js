@@ -136,6 +136,18 @@ export function useStudents(teacherId = null) {
     setStudents((list) => list.map((s) => (s.id === student.id ? student : s)));
   }, []);
 
+  /** حذف طالب */
+  const deleteStudent = useCallback(async (id, name) => {
+    if (!confirm(`هل أنت متأكد من حذف الطالب "${name}"؟`)) return false;
+    const { error: dbError } = await supabase.from('students').delete().eq('id', id);
+    if (dbError) {
+      setError('تعذّر حذف الطالب: ' + dbError.message);
+      return false;
+    }
+    setStudents((list) => list.filter((s) => s.id !== id));
+    return true;
+  }, []);
+
   return {
     students,
     visible: filtered,
@@ -150,6 +162,7 @@ export function useStudents(teacherId = null) {
     commitProgress,
     addStudent,
     replaceStudent,
+    deleteStudent,
     refresh: fetchStudents
   };
 }
