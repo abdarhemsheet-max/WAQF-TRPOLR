@@ -111,6 +111,27 @@ export function useStudents(teacherId = null) {
     setStudents((list) => list.map((s) => (s.id === id ? { ...s, progress: value } : s)));
   }, []);
 
+  /** تعديل تقييم الصوت محلياً أثناء الكتابة */
+  const changeVoiceRating = useCallback((id, value) => {
+    setStudents((list) => list.map((s) => (s.id === id ? { ...s, voice_rating: value } : s)));
+  }, []);
+
+  /** حفظ تقييم الصوت في قاعدة البيانات مع تثبيته بين 0 و10 */
+  const commitVoiceRating = useCallback(async (id, value) => {
+    const parsed = Number(value);
+    const clamped = Math.min(10, Math.max(0, Number.isNaN(parsed) ? 0 : parsed));
+
+    setStudents((list) => list.map((s) => (s.id === id ? { ...s, voice_rating: clamped } : s)));
+
+    const { error: dbError } = await writeWithFallback({
+      table: 'students',
+      action: 'update',
+      payload: { voice_rating: clamped },
+      match: { id }
+    });
+    if (dbError) setError('تعذّر حفظ تقييم الصوت: ' + dbError.message);
+  }, []);
+
   /** حفظ نسبة الإنجاز في قاعدة البيانات مع تثبيتها بين صفر و100 */
   const commitProgress = useCallback(async (id, value) => {
     const parsed = Number(value);
@@ -160,6 +181,8 @@ export function useStudents(teacherId = null) {
     commitNote,
     changeProgress,
     commitProgress,
+    changeVoiceRating,
+    commitVoiceRating,
     addStudent,
     replaceStudent,
     deleteStudent,

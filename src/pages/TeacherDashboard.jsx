@@ -20,6 +20,8 @@ export default function TeacherDashboard() {
     commitNote,
     changeProgress,
     commitProgress,
+    changeVoiceRating,
+    commitVoiceRating,
     addStudent,
     replaceStudent,
     deleteStudent
@@ -66,6 +68,8 @@ export default function TeacherDashboard() {
           onNoteCommit={commitNote}
           onProgressChange={changeProgress}
           onProgressCommit={commitProgress}
+          onVoiceRatingChange={changeVoiceRating}
+          onVoiceRatingCommit={commitVoiceRating}
           showActions
           onEdit={setEditing}
           onDelete={deleteStudent}

@@ -27,6 +27,8 @@ export default function AdminDashboard() {
     commitNote,
     changeProgress,
     commitProgress,
+    changeVoiceRating,
+    commitVoiceRating,
     replaceStudent,
     deleteStudent,
     refresh
@@ -123,6 +125,8 @@ export default function AdminDashboard() {
           onNoteCommit={commitNote}
           onProgressChange={changeProgress}
           onProgressCommit={commitProgress}
+          onVoiceRatingChange={changeVoiceRating}
+          onVoiceRatingCommit={commitVoiceRating}
           onEdit={setEditing}
           onDelete={deleteStudent}
         />

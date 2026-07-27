@@ -14,8 +14,11 @@ export default function StudentsTable({
   onNoteCommit,
   onProgressChange,
   onProgressCommit,
+  onVoiceRatingChange,
+  onVoiceRatingCommit,
   onEdit,
-  onDelete
+  onDelete,
+  onJudge
 }) {
   const columnCount = showTeacherColumn ? 8 : 7;
 
@@ -50,7 +53,22 @@ export default function StudentsTable({
                   <span className="center-badge">{student.memorization_center || '—'}</span>
                 </td>
                 <td>
-                  <span className="voice-badge">{student.voice_rating ?? 0}<span style={{color:'#666',fontSize:'.7rem'}}>/10</span></span>
+                  <input
+                    type="number"
+                    className="voice-input"
+                    min="0"
+                    max="10"
+                    step="0.5"
+                    value={student.voice_rating ?? 0}
+                    title="عدّل تقييم الصوت من 0 إلى 10"
+                    onChange={(e) => onVoiceRatingChange?.(student.id, e.target.value)}
+                    onBlur={(e) => onVoiceRatingCommit?.(student.id, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur();
+                    }}
+                    style={{ width: 60, direction: 'ltr', textAlign: 'left' }}
+                  />
+                  <span style={{ color: '#666', fontSize: '.7rem', marginRight: 2 }}>/10</span>
                 </td>
                 {showTeacherColumn && (
                   <td>
@@ -115,6 +133,15 @@ export default function StudentsTable({
                       >
                         <WhatsappBubbleIcon />
                         إنشاء رسالة
+                      </button>
+                    )}
+                    {showActions && onJudge && (
+                      <button
+                        className="btn-action"
+                        onClick={() => onJudge(student)}
+                        title="تحكيم الطالب"
+                      >
+                        تحكيم
                       </button>
                     )}
                     {showActions && onEdit && (
