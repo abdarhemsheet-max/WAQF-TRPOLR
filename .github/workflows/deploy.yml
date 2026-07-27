@@ -35,6 +35,7 @@ jobs:
           # إن تُركا فارغين يعمل الموقع في الوضع التجريبي ببيانات وهمية
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_WHATSAPP_SERVICE_URL: ${{ secrets.VITE_WHATSAPP_SERVICE_URL }}
         run: npm run build
 
       - uses: actions/configure-pages@v5
