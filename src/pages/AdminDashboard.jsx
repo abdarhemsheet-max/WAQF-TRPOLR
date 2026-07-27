@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { useStudents } from '../hooks/useStudents.js';
 import { useTemplates } from '../hooks/useTemplates.js';
@@ -36,18 +36,31 @@ export default function AdminDashboard() {
   const [editing, setEditing] = useState(null);
   const [messaging, setMessaging] = useState(false);
   const [managingTemplates, setManagingTemplates] = useState(false);
+  const [showTeachers, setShowTeachers] = useState(false);
 
-  useEffect(() => {
-    supabase
+  const loadTeachers = useCallback(async () => {
+    const { data } = await supabase
       .from('users')
       .select('id, name, halaqa_number')
       .eq('role', 'teacher')
-      .order('name')
-      .then(({ data }) => setTeachers(data ?? []));
+      .order('name');
+    if (!data) return;
+    const enriched = await Promise.all(
+      data.map((t) =>
+        supabase
+          .from('students')
+          .select('id', { count: 'exact', head: true })
+          .eq('teacher_id', t.id)
+          .then(({ count }) => ({ ...t, student_count: count ?? 0 }))
+      )
+    );
+    setTeachers(enriched);
   }, []);
 
+  useEffect(() => { loadTeachers(); }, [loadTeachers]);
+
   const handleTeacherSaved = (teacher) => {
-    setTeachers((list) => [...list, teacher]);
+    setTeachers((list) => [...list, { ...teacher, student_count: 0 }]);
     refresh();
   };
 
@@ -96,6 +109,50 @@ export default function AdminDashboard() {
           onEdit={setEditing}
         />
       )}
+
+      <div className="glass-panel" style={{ marginTop: 24 }}>
+        <div
+          className="glass-panel-head"
+          style={{ cursor: 'pointer', marginBottom: showTeachers ? 18 : 0 }}
+          onClick={() => setShowTeachers((s) => !s)}
+        >
+          <h2>المحفّظون المسجّلون في النظام</h2>
+          <span className="glass-panel-hint">
+            {showTeachers ? 'إخفاء' : 'إظهار التفاصيل'} ({ar(teachers.length)})
+          </span>
+        </div>
+
+        {showTeachers && (
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>اسم المحفّظ</th>
+                  <th>رمز الحلقة</th>
+                  <th>عدد الطلاب</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teachers.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="empty-state">لا يوجد محفّظون بعد</td>
+                  </tr>
+                ) : (
+                  teachers.map((t, i) => (
+                    <tr key={t.id}>
+                      <td className="student-number">{ar(i + 1)}</td>
+                      <td>{t.name}</td>
+                      <td>{t.halaqa_number}</td>
+                      <td><span className="level-badge">{ar(t.student_count)}</span></td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {addingTeacher && (
         <AddTeacherForm onClose={() => setAddingTeacher(false)} onSaved={handleTeacherSaved} />
