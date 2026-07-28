@@ -73,6 +73,8 @@ create table if not exists public.evaluations (
     level           text not null,
     voice_rating    numeric(3,1) not null default 0 check (voice_rating >= 0 and voice_rating <= 10),
     criteria_data   jsonb not null default '{}'::jsonb,
+    final_score     numeric(5,2) not null default 0 check (final_score >= 0 and final_score <= 100),
+    is_approved     boolean not null default false,
     created_at      timestamptz not null default now()
 );
 
