@@ -118,7 +118,7 @@ export default function EvaluationModal({ student, user, onClose, onSaved }) {
                             }}
                             title={active ? `إزالة (${s.deduct})` : `إضافة (${s.deduct})`}
                           >
-                            {active ? s.label : <span style={{ opacity: 0.4 }}>—</span>}
+                            {active ? s.label : <span style={{ opacity: 0.4 }}>-</span>}
                           </button>
                         </td>
                       );
