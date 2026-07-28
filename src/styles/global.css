@@ -162,6 +162,12 @@ tbody tr:hover { background: var(--glass-hover); }
 .eval-status--saving { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
 .eval-status--saved { background: rgba(16, 185, 129, 0.12); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.25); }
 .eval-status--offline { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+.eval-sync-btn {
+  background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 4px 14px; border-radius: 20px; font-size: clamp(0.7rem, 1.6vw, 0.8rem);
+  font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;
+}
+.eval-sync-btn:hover { background: var(--success); color: #fff; border-color: var(--success); }
 .eval-header-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .eval-header-name { font-weight: 700; font-size: clamp(1rem, 3vw, 1.2rem); color: var(--text-main); }
 .eval-header-level { font-size: clamp(0.75rem, 2vw, 0.85rem); color: var(--text-muted); }

@@ -4,7 +4,7 @@ import { getLevelConfig, emptyEvaluation, CRITERIA } from '../utils/evaluationCo
 
 const DRAFT_KEY = (id) => `eval_draft_${id}`;
 
-function loadDraft(studentId, level) {
+function loadDraft(studentId) {
   try {
     const raw = localStorage.getItem(DRAFT_KEY(studentId));
     if (!raw) return null;
@@ -30,6 +30,15 @@ function markSynced(studentId) {
   } catch {}
 }
 
+function isDraftUnsaved(studentId) {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY(studentId));
+    if (!raw) return false;
+    const draft = JSON.parse(raw);
+    return draft._synced === false;
+  } catch { return false; }
+}
+
 export default function EvaluationModal({ student, user, onClose }) {
   const config = getLevelConfig(student.level);
   const empty = emptyEvaluation(student.level);
@@ -52,9 +61,68 @@ export default function EvaluationModal({ student, user, onClose }) {
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  // Load existing evaluation on mount
+  const remoteSave = useCallback(async () => {
+    const payload = { criteria_data: checksRef.current, voice_rating: Number(voiceRef.current) };
+    setStatus('saving');
+    if (evalIdRef.current) {
+      const { error } = await supabase.from('evaluations').update(payload).eq('id', evalIdRef.current);
+      if (error) throw error;
+    } else {
+      const { data: inserted, error } = await supabase.from('evaluations').insert({
+        student_id: student.id, teacher_id: user?.id ?? null,
+        level: student.level, ...payload
+      }).select('id').single();
+      if (error) throw error;
+      if (inserted) evalIdRef.current = inserted.id;
+    }
+    markSynced(student.id);
+    if (mountedRef.current) setStatus('saved');
+  }, [student.id, user?.id, student.level]);
+
+  const retrySync = useCallback(async () => {
+    const draft = loadDraft(student.id);
+    if (!draft || draft._synced) return;
+    checksRef.current = draft.criteria_data;
+    voiceRef.current = draft.voice_rating ?? 0;
+    setChecks(draft.criteria_data);
+    setVoice(draft.voice_rating ?? 0);
+    try {
+      await remoteSave();
+    } catch {
+      if (mountedRef.current) setStatus('offline');
+    }
+  }, [student.id, remoteSave]);
+
+  const hybridSave = useCallback(() => {
+    const data = { criteria_data: checksRef.current, voice_rating: Number(voiceRef.current) };
+    saveDraft(student.id, data);
+    remoteSave().catch(() => {
+      if (mountedRef.current) setStatus('offline');
+    });
+  }, [student.id, remoteSave]);
+
+  // Load existing on mount
   useEffect(() => {
     (async () => {
+      if (isDraftUnsaved(student.id)) {
+        // هناك مسودة لم تُرسل — استعدها وحاول المزامنة
+        const draft = loadDraft(student.id);
+        if (draft) {
+          checksRef.current = draft.criteria_data;
+          setChecks(draft.criteria_data);
+          if (draft.voice_rating != null) {
+            voiceRef.current = draft.voice_rating;
+            setVoice(draft.voice_rating);
+          }
+        }
+        if (navigator.onLine) {
+          await retrySync();
+        } else {
+          setStatus('offline');
+        }
+        return;
+      }
+
       const { data } = await supabase
         .from('evaluations')
         .select('id, criteria_data, voice_rating')
@@ -75,47 +143,20 @@ export default function EvaluationModal({ student, user, onClose }) {
         }
         markSynced(student.id);
         setStatus('saved');
-      } else {
-        // DB fetch failed or no record — try draft
-        const draft = loadDraft(student.id, student.level);
-        if (draft) {
-          checksRef.current = draft.criteria_data;
-          setChecks(draft.criteria_data);
-          if (draft.voice_rating != null) {
-            voiceRef.current = draft.voice_rating;
-            setVoice(draft.voice_rating);
-          }
-          setStatus('offline');
-        }
       }
     })();
-  }, [student.id, student.level]);
+  }, [student.id, retrySync]);
 
-  const remoteSave = useCallback(async () => {
-    const payload = { criteria_data: checksRef.current, voice_rating: Number(voiceRef.current) };
-    setStatus('saving');
-    if (evalIdRef.current) {
-      const { error } = await supabase.from('evaluations').update(payload).eq('id', evalIdRef.current);
-      if (error) throw error;
-    } else {
-      const { data: inserted, error } = await supabase.from('evaluations').insert({
-        student_id: student.id, teacher_id: user?.id ?? null,
-        level: student.level, ...payload
-      }).select('id').single();
-      if (error) throw error;
-      if (inserted) evalIdRef.current = inserted.id;
-    }
-    markSynced(student.id);
-    if (mountedRef.current) setStatus('saved');
-  }, [student.id, user?.id, student.level]);
-
-  const hybridSave = useCallback(() => {
-    const data = { criteria_data: checksRef.current, voice_rating: Number(voiceRef.current) };
-    saveDraft(student.id, data);
-    remoteSave().catch(() => {
-      if (mountedRef.current) setStatus('offline');
-    });
-  }, [student.id, remoteSave]);
+  // Auto-sync when coming back online
+  useEffect(() => {
+    const handleOnline = () => {
+      if (isDraftUnsaved(student.id)) {
+        retrySync();
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [student.id, retrySync]);
 
   const toggle = (subject, row, criterion) => {
     const next = { ...checksRef.current };
@@ -153,6 +194,11 @@ export default function EvaluationModal({ student, user, onClose }) {
           <span className="eval-header-level">{config.label}</span>
         </div>
         {statusText && <span className={`eval-status eval-status--${status}`}>{statusText}</span>}
+        {status === 'offline' && (
+          <button className="eval-sync-btn" onClick={retrySync} title="محاولة المزامنة الآن">
+            مزامنة
+          </button>
+        )}
       </div>
 
       <div className="eval-info">
