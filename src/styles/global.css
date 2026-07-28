@@ -155,6 +155,13 @@ tbody tr:hover { background: var(--glass-hover); }
   transition: all 0.2s;
 }
 .eval-close-btn:hover { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
+.eval-status {
+  font-size: clamp(0.7rem, 1.6vw, 0.8rem); padding: 4px 12px; border-radius: 20px;
+  white-space: nowrap; margin-right: auto; font-weight: 500;
+}
+.eval-status--saving { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+.eval-status--saved { background: rgba(16, 185, 129, 0.12); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.25); }
+.eval-status--offline { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
 .eval-header-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .eval-header-name { font-weight: 700; font-size: clamp(1rem, 3vw, 1.2rem); color: var(--text-main); }
 .eval-header-level { font-size: clamp(0.75rem, 2vw, 0.85rem); color: var(--text-muted); }
