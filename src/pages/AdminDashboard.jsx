@@ -14,7 +14,7 @@ import AddTeacherForm from '../components/AddTeacherForm.jsx';
 import EditStudentForm from '../components/EditStudentForm.jsx';
 import MassMessaging from '../components/MassMessaging.jsx';
 import TemplateManager from '../components/TemplateManager.jsx';
-import EvaluationModal from '../components/EvaluationModal.jsx';
+import EvaluationPanel from '../components/EvaluationPanel.jsx';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -222,7 +222,7 @@ export default function AdminDashboard() {
       )}
 
       {judging && (
-        <EvaluationModal
+        <EvaluationPanel
           student={judging}
           user={user}
           onClose={() => setJudging(null)}

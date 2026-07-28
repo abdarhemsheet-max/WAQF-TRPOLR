@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { writeFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -31,7 +32,7 @@ function spaFallback() {
 
 export default defineConfig({
   base,
-  plugins: [react(), spaFallback()],
+  plugins: [react(), tailwindcss(), spaFallback()],
   server: { port: 5173, open: true },
   build: { outDir: 'dist', sourcemap: false }
 });

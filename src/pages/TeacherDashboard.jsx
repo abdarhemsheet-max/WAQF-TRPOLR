@@ -6,7 +6,7 @@ import Toolbar from '../components/Toolbar.jsx';
 import StudentsTable from '../components/StudentsTable.jsx';
 import AddStudentForm from '../components/AddStudentForm.jsx';
 import EditStudentForm from '../components/EditStudentForm.jsx';
-import EvaluationModal from '../components/EvaluationModal.jsx';
+import EvaluationPanel from '../components/EvaluationPanel.jsx';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
@@ -97,7 +97,7 @@ export default function TeacherDashboard() {
       )}
 
       {judging && (
-        <EvaluationModal
+        <EvaluationPanel
           student={judging}
           user={user}
           onClose={() => setJudging(null)}
