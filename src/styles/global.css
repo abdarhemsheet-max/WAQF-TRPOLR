@@ -222,14 +222,13 @@ tbody tr:hover { background: var(--glass-hover); }
 .eval-voice-input::-webkit-outer-spin-button,
 .eval-voice-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .eval-voice-unit { color: var(--text-muted); font-size: clamp(0.8rem, 2vw, 0.9rem); }
-.eval-save-btn {
-  background: var(--primary); color: #fff; border: none;
-  padding: clamp(10px, 1.5vw, 14px) clamp(20px, 3vw, 32px); border-radius: 12px;
-  font-size: clamp(0.9rem, 2.5vw, 1rem); font-weight: 700; cursor: pointer;
-  transition: all 0.2s; white-space: nowrap;
+.eval-close-footer-btn {
+  background: rgba(255, 255, 255, 0.06); color: var(--text-main);
+  border: 1px solid var(--glass-border); padding: clamp(8px, 1.2vw, 12px) clamp(16px, 2.5vw, 28px);
+  border-radius: 12px; font-size: clamp(0.85rem, 2vw, 0.95rem); font-weight: 600;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
 }
-.eval-save-btn:hover { background: #2563eb; }
-.eval-save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.eval-close-footer-btn:hover { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #fca5a5; }
 
 @media (max-width: 768px) {
   .eval-header { padding: 8px 12px; }

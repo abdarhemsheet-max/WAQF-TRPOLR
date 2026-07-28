@@ -1,58 +1,62 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
-import { getLevelConfig, emptyEvaluation, CRITERIA, ROWS } from '../utils/evaluationConfig.js';
+import { getLevelConfig, emptyEvaluation, CRITERIA } from '../utils/evaluationConfig.js';
 
 export default function EvaluationModal({ student, user, onClose, onSaved }) {
   const config = getLevelConfig(student.level);
-  const [checks, setChecks] = useState(() => {
-    try {
-      return JSON.parse(student.criteria_data ?? '{}');
-    } catch {
-      return emptyEvaluation(student.level);
-    }
-  });
+  const empty = emptyEvaluation(student.level);
+  const [checks, setChecks] = useState(empty);
   const [voice, setVoice] = useState(student.voice_rating ?? 0);
-  const [saving, setSaving] = useState(false);
+  const evalIdRef = useRef(null);
+  const checksRef = useRef(checks);
+  const voiceRef = useRef(voice);
+  const voiceTimer = useRef(null);
+
+  useEffect(() => { checksRef.current = checks; }, [checks]);
+  useEffect(() => { voiceRef.current = voice; }, [voice]);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  const save = useCallback(async () => {
+    const payload = { criteria_data: checksRef.current, voice_rating: Number(voiceRef.current) };
+    if (evalIdRef.current) {
+      await supabase.from('evaluations').update(payload).eq('id', evalIdRef.current);
+    } else {
+      const { data: inserted } = await supabase.from('evaluations').insert({
+        student_id: student.id, teacher_id: user?.id ?? null,
+        level: student.level, ...payload
+      }).select('id').single();
+      if (inserted) evalIdRef.current = inserted.id;
+    }
+  }, [student.id, user?.id, student.level]);
 
   const toggle = (subject, row, criterion) => {
-    setChecks((prev) => {
-      const next = { ...prev };
-      if (!next[subject]) {
-        next[subject] = [];
-      }
-      next[subject] = next[subject].map((r, i) =>
-        i === row ? { ...r, [criterion]: !r[criterion] } : r
-      );
-      return next;
-    });
+    const next = { ...checksRef.current };
+    if (!next[subject]) next[subject] = [];
+    next[subject] = next[subject].map((r, i) =>
+      i === row ? { ...r, [criterion]: !r[criterion] } : r
+    );
+    checksRef.current = next;
+    setChecks(next);
+    save();
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    const { error } = await supabase.from('evaluations').insert({
-      student_id: student.id,
-      teacher_id: user?.id ?? null,
-      level: student.level,
-      voice_rating: voice,
-      criteria_data: checks
-    });
-    if (error) {
-      alert('تعذّر حفظ التقييم: ' + error.message);
-    } else {
-      onSaved?.();
-      onClose();
-    }
-    setSaving(false);
+  const handleVoiceChange = (e) => {
+    const v = e.target.value;
+    setVoice(v);
+    clearTimeout(voiceTimer.current);
+    voiceTimer.current = setTimeout(save, 400);
   };
 
   return (
     <div className="eval-fullscreen">
-      {/* Sticky header */}
       <div className="eval-header">
         <button className="eval-close-btn" onClick={onClose} title="رجوع">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </button>
         <div className="eval-header-title">
@@ -61,14 +65,12 @@ export default function EvaluationModal({ student, user, onClose, onSaved }) {
         </div>
       </div>
 
-      {/* Info bar */}
       <div className="eval-info">
         <span><span className="eval-info-label">المستوى:</span> {student.level}</span>
         <span><span className="eval-info-label">الإنجاز:</span> {Number(student.progress)}%</span>
         <span><span className="eval-info-label">المركز:</span> {student.memorization_center || '—'}</span>
       </div>
 
-      {/* Scrollable table area */}
       <div className="eval-table-area">
         <div className="eval-table-wrap">
           <table className="eval-table">
@@ -96,12 +98,8 @@ export default function EvaluationModal({ student, user, onClose, onSaved }) {
                       return (
                         <td key={`${subject}-${row}-${criterion}`}>
                           <label className="eval-cb-label">
-                            <input
-                              type="checkbox"
-                              className="eval-cb"
-                              checked={checked}
-                              onChange={() => toggle(subject, row, criterion)}
-                            />
+                            <input type="checkbox" className="eval-cb" checked={checked}
+                              onChange={() => toggle(subject, row, criterion)} />
                             <span className="eval-cb-visual"></span>
                           </label>
                         </td>
@@ -115,26 +113,16 @@ export default function EvaluationModal({ student, user, onClose, onSaved }) {
         </div>
       </div>
 
-      {/* Sticky footer */}
       <div className="eval-footer">
         <div className="eval-voice">
           <label>تقييم الصوت</label>
           <div className="eval-voice-wrap">
-            <input
-              type="number"
-              className="eval-voice-input"
-              min="0"
-              max="10"
-              step="0.5"
-              value={voice}
-              onChange={(e) => setVoice(e.target.value)}
-            />
+            <input type="number" className="eval-voice-input" min="0" max="10" step="0.5"
+              value={voice} onChange={handleVoiceChange} />
             <span className="eval-voice-unit">/10</span>
           </div>
         </div>
-        <button className="eval-save-btn" onClick={handleSave} disabled={saving}>
-          {saving ? 'جارٍ الحفظ...' : 'حفظ التقييم'}
-        </button>
+        <button className="eval-close-footer-btn" onClick={onClose}>إغلاق</button>
       </div>
     </div>
   );
