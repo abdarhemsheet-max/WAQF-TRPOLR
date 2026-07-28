@@ -14,6 +14,7 @@ import AddTeacherForm from '../components/AddTeacherForm.jsx';
 import EditStudentForm from '../components/EditStudentForm.jsx';
 import MassMessaging from '../components/MassMessaging.jsx';
 import TemplateManager from '../components/TemplateManager.jsx';
+import EvaluationModal from '../components/EvaluationModal.jsx';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -221,39 +222,12 @@ export default function AdminDashboard() {
       )}
 
       {judging && (
-        <Modal title={`تحكيم: ${judging.name}`} onClose={() => setJudging(null)}>
-          <div style={{ padding: '8px 0' }}>
-            <div className="field">
-              <label>المستوى</label>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{judging.level}</div>
-            </div>
-            <div className="field">
-              <label>نسبة الإنجاز</label>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{ar(judging.progress)}%</div>
-            </div>
-            <div className="field">
-              <label>مركز التحفيظ</label>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{judging.memorization_center || '—'}</div>
-            </div>
-            <div className="field">
-              <label>تقييم الصوت</label>
-              <input
-                type="number"
-                min="0"
-                max="10"
-                step="0.5"
-                defaultValue={judging.voice_rating ?? 0}
-                onChange={(e) => changeVoiceRating(judging.id, e.target.value)}
-                onBlur={(e) => commitVoiceRating(judging.id, e.target.value)}
-                style={{ direction: 'ltr', textAlign: 'left', width: 100 }}
-              />
-              <span style={{ color: '#666', fontSize: '.8rem', marginRight: 4 }}>/10</span>
-            </div>
-            <button className="btn-primary" onClick={() => setJudging(null)} style={{ width: '100%', marginTop: 8 }}>
-              تم
-            </button>
-          </div>
-        </Modal>
+        <EvaluationModal
+          student={judging}
+          user={user}
+          onClose={() => setJudging(null)}
+          onSaved={() => { refresh(); }}
+        />
       )}
     </div>
   );
