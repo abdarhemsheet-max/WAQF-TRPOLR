@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
-import Modal from './Modal.jsx';
 import { getLevelConfig, emptyEvaluation, CRITERIA, ROWS } from '../utils/evaluationConfig.js';
 
 export default function EvaluationModal({ student, user, onClose, onSaved }) {
@@ -47,46 +46,64 @@ export default function EvaluationModal({ student, user, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={`تحكيم: ${student.name}`} onClose={onClose} wide>
-      <div className="evaluation-modal-body">
-        <div className="evaluation-info">
-          <div><span className="evaluation-info-label">المستوى:</span> {student.level}</div>
-          <div><span className="evaluation-info-label">نسبة الإنجاز:</span> {Number(student.progress)}%</div>
-          <div><span className="evaluation-info-label">مركز التحفيظ:</span> {student.memorization_center || '—'}</div>
+    <div className="eval-fullscreen">
+      {/* Sticky header */}
+      <div className="eval-header">
+        <button className="eval-close-btn" onClick={onClose} title="رجوع">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+        <div className="eval-header-title">
+          <span className="eval-header-name">تحكيم: {student.name}</span>
+          <span className="eval-header-level">{config.label}</span>
         </div>
+      </div>
 
-        <div className="evaluation-table-wrap">
-          <table className="evaluation-table">
+      {/* Info bar */}
+      <div className="eval-info">
+        <span><span className="eval-info-label">المستوى:</span> {student.level}</span>
+        <span><span className="eval-info-label">الإنجاز:</span> {Number(student.progress)}%</span>
+        <span><span className="eval-info-label">المركز:</span> {student.memorization_center || '—'}</span>
+      </div>
+
+      {/* Scrollable table area */}
+      <div className="eval-table-area">
+        <div className="eval-table-wrap">
+          <table className="eval-table">
             <thead>
               <tr>
-                <th className="eval-row-header">#</th>
+                <th className="eval-rh">#</th>
                 {config.subjects.map((subject) => (
                   <th key={subject} colSpan={3}>{subject}</th>
                 ))}
               </tr>
               <tr>
-                <th className="eval-row-header"></th>
+                <th className="eval-rh"></th>
                 {config.subjects.map((subject) =>
-                  CRITERIA.map((c) => <th key={`${subject}-${c}`} className="eval-criterion">{c}</th>)
+                  CRITERIA.map((c) => <th key={`${subject}-${c}`} className="eval-cr">{c}</th>)
                 )}
               </tr>
             </thead>
             <tbody>
               {Array.from({ length: config.rowCount }, (_, row) => (
                 <tr key={row}>
-                  <td className="eval-row-num">{row + 1 === 10 ? 'عشرة' : row + 1}</td>
+                  <td className="eval-rn">{row + 1 === 10 ? 'عشرة' : row + 1}</td>
                   {config.subjects.map((subject) =>
                     CRITERIA.map((criterion) => {
                       const checked = checks[subject]?.[row]?.[criterion] ?? false;
                       return (
                         <td key={`${subject}-${row}-${criterion}`}>
-                          <div className="check-item">
+                          <label className="eval-cb-label">
                             <input
                               type="checkbox"
+                              className="eval-cb"
                               checked={checked}
                               onChange={() => toggle(subject, row, criterion)}
                             />
-                          </div>
+                            <span className="eval-cb-visual"></span>
+                          </label>
                         </td>
                       );
                     })
@@ -96,28 +113,29 @@ export default function EvaluationModal({ student, user, onClose, onSaved }) {
             </tbody>
           </table>
         </div>
-
-        <div className="evaluation-footer">
-          <div className="evaluation-voice">
-            <label>تقييم الصوت</label>
-            <div className="voice-rating-wrap">
-              <input
-                type="number"
-                className="voice-input"
-                min="0"
-                max="10"
-                step="0.5"
-                value={voice}
-                onChange={(e) => setVoice(e.target.value)}
-              />
-              <span className="progress-sign">/10</span>
-            </div>
-          </div>
-          <button className="btn-primary evaluation-save-btn" onClick={handleSave} disabled={saving}>
-            {saving ? 'جارٍ الحفظ...' : 'حفظ التقييم'}
-          </button>
-        </div>
       </div>
-    </Modal>
+
+      {/* Sticky footer */}
+      <div className="eval-footer">
+        <div className="eval-voice">
+          <label>تقييم الصوت</label>
+          <div className="eval-voice-wrap">
+            <input
+              type="number"
+              className="eval-voice-input"
+              min="0"
+              max="10"
+              step="0.5"
+              value={voice}
+              onChange={(e) => setVoice(e.target.value)}
+            />
+            <span className="eval-voice-unit">/10</span>
+          </div>
+        </div>
+        <button className="eval-save-btn" onClick={handleSave} disabled={saving}>
+          {saving ? 'جارٍ الحفظ...' : 'حفظ التقييم'}
+        </button>
+      </div>
+    </div>
   );
 }
