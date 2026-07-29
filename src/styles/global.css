@@ -71,6 +71,14 @@ body::after { bottom: 10%; left: 10%; width: min(300px, 50vw); height: min(300px
 .search-box input:focus { border-color: var(--primary); }
 .search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); width: 18px; height: 18px; }
 
+.level-select {
+  background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-main);
+  padding: 12px 14px; border-radius: 12px; outline: none; backdrop-filter: blur(12px);
+  font-size: clamp(0.8rem, 2vw, 0.9rem); cursor: pointer; min-width: 120px;
+}
+.level-select:focus { border-color: var(--primary); }
+.level-select option { background: #1e293b; color: var(--text-main); }
+
 .btn-action {
     background: rgba(255, 255, 255, 0.05); color: var(--text-main); border: 1px solid var(--glass-border);
     padding: 10px 14px; border-radius: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; transition: all 0.2s; font-size: clamp(0.8rem, 2vw, 0.9rem);

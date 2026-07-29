@@ -14,6 +14,7 @@ export function useStudents(teacherId = null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [levelFilter, setLevelFilter] = useState('');
   const [sortAsc, setSortAsc] = useState(true);
 
   const fetchStudents = useCallback(async () => {
@@ -69,19 +70,25 @@ export function useStudents(teacherId = null) {
    * محرك البحث: يفلتر باسم الطالب واسم المحفّظ — لا شيء غيرهما.
    */
   const filtered = useMemo(() => {
+    let list = students;
+
     const q = query.trim().toLowerCase();
-    const list = q
-      ? students.filter(
-          (s) =>
-            s.name.toLowerCase().includes(q) ||
-            (s.teacher?.name ?? '').toLowerCase().includes(q)
-        )
-      : students;
+    if (q) {
+      list = list.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          (s.teacher?.name ?? '').toLowerCase().includes(q)
+      );
+    }
+
+    if (levelFilter) {
+      list = list.filter((s) => s.level === levelFilter);
+    }
 
     return [...list].sort((a, b) =>
       sortAsc ? Number(a.progress) - Number(b.progress) : Number(b.progress) - Number(a.progress)
     );
-  }, [students, query, sortAsc]);
+  }, [students, query, levelFilter, sortAsc]);
 
   const toggleSort = useCallback(() => setSortAsc((v) => !v), []);
 
@@ -175,6 +182,8 @@ export function useStudents(teacherId = null) {
     error,
     query,
     setQuery,
+    levelFilter,
+    setLevelFilter,
     toggleSort,
     changeNote,
     commitNote,

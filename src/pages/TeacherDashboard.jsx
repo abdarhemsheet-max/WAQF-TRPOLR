@@ -16,6 +16,8 @@ export default function TeacherDashboard() {
     error,
     query,
     setQuery,
+    levelFilter,
+    setLevelFilter,
     toggleSort,
     changeNote,
     commitNote,
@@ -50,6 +52,8 @@ export default function TeacherDashboard() {
         <Toolbar
           query={query}
           onQueryChange={setQuery}
+          levelFilter={levelFilter}
+          onLevelFilterChange={setLevelFilter}
           addLabel="إضافة طالب"
           onAdd={() => setAdding(true)}
           isAdmin={false}

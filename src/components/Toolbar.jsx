@@ -8,9 +8,13 @@ import {
   WhatsappBubbleIcon
 } from './Icons.jsx';
 
+const LEVELS = ['', 'التمهيدي', 'الأول', 'الثاني', 'الثالث'];
+
 export default function Toolbar({
   query,
   onQueryChange,
+  levelFilter,
+  onLevelFilterChange,
   addLabel,
   onAdd,
   onMassMessage,
@@ -28,6 +32,18 @@ export default function Toolbar({
         />
         <SearchIcon />
       </div>
+
+      <select
+        value={levelFilter}
+        onChange={(e) => onLevelFilterChange(e.target.value)}
+        className="level-select"
+        aria-label="تصفية بالمستوى"
+      >
+        <option value="">كل المستويات</option>
+        {LEVELS.filter(Boolean).map((l) => (
+          <option key={l} value={l}>{l}</option>
+        ))}
+      </select>
 
       {isAdmin && (
         <button className="btn-action whatsapp-all" onClick={onMassMessage}>

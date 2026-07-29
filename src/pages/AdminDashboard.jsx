@@ -24,6 +24,8 @@ export default function AdminDashboard() {
     error,
     query,
     setQuery,
+    levelFilter,
+    setLevelFilter,
     toggleSort,
     changeNote,
     commitNote,
@@ -104,6 +106,8 @@ export default function AdminDashboard() {
         <Toolbar
           query={query}
           onQueryChange={setQuery}
+          levelFilter={levelFilter}
+          onLevelFilterChange={setLevelFilter}
           addLabel="إضافة محفّظ"
           onAdd={() => setAddingTeacher(true)}
           onMassMessage={() => setMessaging(true)}
