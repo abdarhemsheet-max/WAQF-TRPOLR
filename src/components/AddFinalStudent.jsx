@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
-import { LEVELS, matnForLevel } from '../utils/levels.js';
+import { LEVELS } from '../utils/levels.js';
 import { normalizeGuardianPhone } from '../utils/phone.js';
 import Modal from './Modal.jsx';
 
@@ -8,9 +8,7 @@ const EMPTY = {
   name: '',
   guardian_phone: '',
   memorization_center: '',
-  level: LEVELS[0].level,
-  matn: '',
-  progress: 0
+  level: LEVELS[0].level
 };
 
 export default function AddFinalStudent({ committeeId, userId, onClose, onSaved }) {
@@ -19,10 +17,6 @@ export default function AddFinalStudent({ committeeId, userId, onClose, onSaved 
   const [saving, setSaving] = useState(false);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
-
-  const handleLevelChange = (level) => {
-    setForm((f) => ({ ...f, level, matn: matnForLevel(level) }));
-  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -33,17 +27,18 @@ export default function AddFinalStudent({ committeeId, userId, onClose, onSaved 
 
     setSaving(true);
 
+    const phone = form.guardian_phone.trim();
+    const payload = {
+      name,
+      guardian_phone: phone ? normalizeGuardianPhone(phone) : null,
+      memorization_center: form.memorization_center.trim(),
+      level: form.level,
+      created_by: userId
+    };
+
     const { data: fs, error: fsErr } = await supabase
       .from('finals_students')
-      .insert({
-        name,
-        guardian_phone: normalizeGuardianPhone(form.guardian_phone),
-        memorization_center: form.memorization_center.trim(),
-        level: form.level,
-        matn: form.matn || matnForLevel(form.level),
-        progress: Math.min(100, Math.max(0, Number(form.progress) || 0)),
-        created_by: userId
-      })
+      .insert(payload)
       .select('*')
       .single();
 
@@ -77,20 +72,9 @@ export default function AddFinalStudent({ committeeId, userId, onClose, onSaved 
 
         <div className="field">
           <label>المستوى</label>
-          <select value={form.level} onChange={e => handleLevelChange(e.target.value)}>
+          <select value={form.level} onChange={e => set('level', e.target.value)}>
             {LEVELS.map(l => <option key={l.level} value={l.level}>{l.level}</option>)}
           </select>
-        </div>
-
-        <div className="field">
-          <label>المتن</label>
-          <input type="text" value={form.matn} onChange={e => set('matn', e.target.value)} placeholder={matnForLevel(form.level)} />
-        </div>
-
-        <div className="field">
-          <label>الإنجاز (%)</label>
-          <input type="number" min="0" max="100" value={form.progress} onChange={e => set('progress', e.target.value)}
-            style={{ direction: 'ltr', textAlign: 'left', width: 100 }} />
         </div>
 
         <div className="field">
@@ -99,7 +83,7 @@ export default function AddFinalStudent({ committeeId, userId, onClose, onSaved 
         </div>
 
         <div className="field">
-          <label>رقم ولي الأمر</label>
+          <label>رقم ولي الأمر <span className="field-optional">اختياري</span></label>
           <input type="tel" inputMode="tel" value={form.guardian_phone} onChange={e => set('guardian_phone', e.target.value)}
             placeholder="0912345678" style={{ direction: 'ltr', textAlign: 'left' }} />
         </div>
