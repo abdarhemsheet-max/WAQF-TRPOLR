@@ -16,45 +16,82 @@ function questionsFor(e) {
   return [{ question_index: 0, voice_score: e.voice_score || 0, deductions: rawDed || {} }];
 }
 
-function exportExcel(queueItem) {
+function exportExcel(queueItem, committee) {
   const evals = queueItem.evaluations || [];
-  const studentName = queueItem.student?.name || '';
+  const student = queueItem.student || {};
+  const studentName = student.name || '';
   const avg = evals.length > 0
     ? Math.round(evals.reduce((s, e) => s + e.final_score, 0) / evals.length)
-    : 0;
+    : null;
 
-  const HEADER = ['المحكم', 'النتيجة', 'السؤال', 'الصوت', 'الخصميات'];
-  const data = [HEADER];
+  const members = committee?.members || [];
+  const headName = members.find(m => m.is_head)?.name || '—';
+  const memberName = members.find(m => !m.is_head)?.name || '—';
 
-  evals.forEach((e, ei) => {
-    const qs = questionsFor(e);
-    const name = e.evaluator_name || `محكم ${ei + 1}`;
-    const fScore = Math.round(e.final_score);
+  const statusMap = { pending: 'بانتظار التقييم', evaluated: 'تم التقييم', finalized: 'معتمد' };
+  const status = statusMap[queueItem.status] || queueItem.status;
 
-    qs.forEach((q, qi) => {
-      const ded = q.deductions || {};
-      const voice = q.voice_score || 0;
-      const activeDed = DEDUCTION_KEYS.filter(c => (ded[c] || 0) > 0)
-        .map(c => `${c}: ${ar(ded[c])} (-${QUAL_DEDUCTIONS[c]})`).join('، ');
-      data.push([name, fScore, labelForIndex(qi), voice, activeDed || '—']);
-    });
-  });
+  const deductionLabels = ['التلعثم', 'التردد', 'اللحن الخفي', 'التنبيه', 'الفتح', 'اللحن', 'التحلية', 'التقديم أو التأخير', 'النقص أو الزيادة', 'راوي الحديث أو التخريج'];
 
+  const data = [];
+
+  // === القسم 1: معلومات الطالب ===
+  data.push(['📋 معلومات الطالب']);
+  data.push(['اسم الطالب', studentName]);
+  data.push(['رقم ولي الأمر', student.guardian_phone || '—']);
+  data.push(['مركز التحفيظ', student.memorization_center || '—']);
+  data.push(['المستوى', student.level || '—']);
   data.push([]);
-  data.push(['متوسط النتيجة النهائية', `${ar(avg)}%`]);
+
+  // === القسم 2: معلومات اللجنة ===
+  data.push(['🏛️ معلومات اللجنة']);
+  data.push(['اسم اللجنة', committee?.name || '—']);
+  data.push(['الغرفة', committee?.room || '—']);
+  data.push(['رئيس اللجنة', headName]);
+  data.push(['عضو اللجنة', memberName]);
+  data.push([]);
+
+  // === القسم 3: النتيجة العامة ===
+  data.push(['📊 النتيجة العامة']);
+  data.push(['الحالة', status]);
+  data.push(['متوسط النتيجة النهائية', avg !== null ? `${ar(avg)}%` : '—']);
+  data.push([]);
+
+  // === القسم 4: تفصيل التحكيم لكل محكم ===
+  if (evals.length > 0) {
+    data.push(['🔍 تفصيل التحكيم']);
+    evals.forEach((e, ei) => {
+      const qs = questionsFor(e);
+      const judgeLabel = ei === 0 ? 'المحكم الأول' : 'المحكم الثاني';
+      const judgeName = e.evaluator_name || judgeLabel;
+      data.push([`👤 ${judgeName}`, `النتيجة: ${ar(Math.round(e.final_score))}%`]);
+
+      const headerRow = ['السؤال', `الصوت (من عشرة)`];
+      deductionLabels.forEach(d => headerRow.push(d));
+      data.push(headerRow);
+
+      qs.forEach((q, qi) => {
+        const ded = q.deductions || {};
+        const voice = q.voice_score || 0;
+        const row = [labelForIndex(qi), voice];
+        deductionLabels.forEach(d => row.push(ded[d] || 0));
+        data.push(row);
+      });
+      data.push([]);
+    });
+  }
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(data);
 
   ws['!cols'] = [
-    { wch: 20 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 50 }
+    { wch: 25 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
+    { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+    { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 16 }
   ];
 
-  const wscols = [{ wch: 20 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 50 }];
-  ws['!cols'] = wscols;
-
-  XLSX.utils.book_append_sheet(wb, ws, 'التقييم');
-  XLSX.writeFile(wb, `تقييم_${studentName}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, 'السجل الشامل');
+  XLSX.writeFile(wb, `سجل_${studentName}.xlsx`);
 }
 
 export default function AdminFinalsOverview({ onChanged }) {
@@ -246,9 +283,9 @@ export default function AdminFinalsOverview({ onChanged }) {
                                   </button>
                                 ) : isFinalized ? (
                                   <button className="btn-action add"
-                                    onClick={() => exportExcel(q)}
+                                    onClick={() => exportExcel(q, c)}
                                     style={{ padding: '6px 12px', fontSize: '0.78rem' }}>
-                                    تنزيل إكسل
+                                    تصدير السجل الشامل (Excel)
                                   </button>
                                 ) : (
                                   <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
