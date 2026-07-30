@@ -38,7 +38,7 @@ function labelForIndex(i) {
   return `السؤال ${names[i] || i + 1}`;
 }
 
-export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted, isHead }) {
+export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted }) {
   const [questions, setQuestions] = useState(initQuestions);
   const [currentSection, setCurrentSection] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -99,14 +99,6 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
   const persist = useCallback((qs) => {
     localStorage.setItem(`${STORAGE_KEY}_${queueItem.id}`, JSON.stringify(qs));
   }, [queueItem.id]);
-
-  const addQuestion = () => {
-    setQuestions(prev => {
-      const next = [...prev, { index: prev.length, voiceScore: 0, deductions: emptyDeductions(), cancelled: false }];
-      persist(next);
-      return next;
-    });
-  };
 
   const toggleCancel = (idx) => {
     setQuestions(prev => {
@@ -256,13 +248,6 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
             </button>
           );
         })}
-        {isHead && questions.length < 5 && (
-          <button onClick={addQuestion}
-            className="btn-action add text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1.5"
-            style={{ flex: '0 0 auto' }}>
-            + إضافة سؤال
-          </button>
-        )}
       </div>
 
       <div className="eval-table-area">

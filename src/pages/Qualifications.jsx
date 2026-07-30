@@ -128,7 +128,6 @@ export default function Qualifications() {
             <FinalsEvaluationLockdown
               queueItem={scoringItem}
               user={user}
-              isHead={isHead}
               onSubmitted={handleSaved}
             />
           ) : (
