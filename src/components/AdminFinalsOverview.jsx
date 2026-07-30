@@ -21,6 +21,7 @@ function exportExcel(queueItem, committee) {
   const evals = queueItem.evaluations || [];
   const student = queueItem.student || {};
   const studentName = student.name || '';
+  const isSingle = committee?.is_single_judge;
   const avg = evals.length > 0
     ? Math.round(evals.reduce((s, e) => s + e.final_score, 0) / evals.length)
     : null;
@@ -36,7 +37,6 @@ function exportExcel(queueItem, committee) {
 
   const data = [];
 
-  // === القسم 1: معلومات الطالب ===
   data.push(['📋 معلومات الطالب']);
   data.push(['اسم الطالب', studentName]);
   data.push(['رقم ولي الأمر', student.guardian_phone || '—']);
@@ -44,34 +44,37 @@ function exportExcel(queueItem, committee) {
   data.push(['المستوى', student.level || '—']);
   data.push([]);
 
-  // === القسم 2: معلومات اللجنة ===
   data.push(['🏛️ معلومات اللجنة']);
   data.push(['اسم اللجنة', committee?.name || '—']);
   data.push(['الغرفة', committee?.room || '—']);
-  data.push(['رئيس اللجنة', headName]);
-  data.push(['عضو اللجنة', memberName]);
+  data.push(['نوع اللجنة', isSingle ? 'محكم منفرد' : 'لجنة ثنائية']);
+  data.push([isSingle ? 'المحكم' : 'رئيس اللجنة', headName]);
+  if (!isSingle) data.push(['عضو اللجنة', memberName]);
   data.push([]);
 
-  // === القسم 3: النتيجة العامة ===
   data.push(['📊 النتيجة العامة']);
   data.push(['الحالة', status]);
-  data.push(['متوسط النتيجة النهائية', avg !== null ? `${ar(avg)}%` : '—']);
+  if (avg !== null) data.push(['النتيجة النهائية', `${ar(avg)}%`]);
   data.push([]);
 
-  // === القسم 4: تفصيل التحكيم لكل محكم ===
   if (evals.length > 0) {
     data.push(['🔍 تفصيل التحكيم']);
     evals.forEach((e, ei) => {
       const qs = questionsFor(e);
-      const judgeLabel = ei === 0 ? 'المحكم الأول' : 'المحكم الثاني';
-      const judgeName = e.evaluator_name || judgeLabel;
+      const judgeName = e.evaluator_name || (isSingle ? 'المحكم' : ei === 0 ? 'المحكم الأول' : 'المحكم الثاني');
       data.push([`👤 ${judgeName}`, `النتيجة: ${ar(Math.round(e.final_score))}%`]);
 
-      const headerRow = ['السؤال', `الصوت (من عشرة)`];
+      const headerRow = ['السؤال', 'الصوت (من عشرة)'];
       deductionLabels.forEach(d => headerRow.push(d));
       data.push(headerRow);
 
       qs.forEach((q, qi) => {
+        if (q.cancelled) {
+          const row = [labelForIndex(qi), 'ملغي'];
+          deductionLabels.forEach(() => row.push('—'));
+          data.push(row);
+          return;
+        }
         const ded = q.deductions || {};
         const voice = q.voice_score || 0;
         const row = [labelForIndex(qi), voice];
@@ -130,6 +133,8 @@ export default function AdminFinalsOverview({ onChanged }) {
     const evals = eRes.data || [];
 
     setCommittees(cRes.data.map(c => {
+      const isSingle = c.is_single_judge;
+      const evaluationsRequired = isSingle ? 1 : 2;
       const members = (mRes.data || []).filter(m => m.committee_id === c.id).map(m => ({
         ...m, name: usersMap[m.user_id] || ''
       }));
@@ -138,9 +143,9 @@ export default function AdminFinalsOverview({ onChanged }) {
         const evaluations = evals.filter(e => e.queue_id === q.id).map(e => ({
           ...e, evaluator_name: usersMap[e.evaluator_id] || ''
         }));
-        return { ...q, student, evaluations };
+        return { ...q, student, evaluations, evaluations_required: evaluationsRequired };
       });
-      return { ...c, members, queue };
+      return { ...c, is_single_judge: isSingle, members, queue };
     }));
     setLoading(false);
   }, []);
@@ -148,7 +153,6 @@ export default function AdminFinalsOverview({ onChanged }) {
   useEffect(() => { load(); }, [load]);
 
   const handleFinalize = async (q) => {
-    // تفاؤل: نحدّث الحالة فوراً
     setCommittees(prev => prev.map(c => ({
       ...c, queue: (c.queue || []).map(qq => qq.id === q.id
         ? { ...qq, status: 'finalized', finalized_at: new Date().toISOString() } : qq)
@@ -161,7 +165,6 @@ export default function AdminFinalsOverview({ onChanged }) {
 
     setFinalizing(null);
     if (error) {
-      // تراجع
       setCommittees(prev => prev.map(c => ({
         ...c, queue: (c.queue || []).map(qq => qq.id === q.id ? q : qq)
       })));
@@ -185,6 +188,8 @@ export default function AdminFinalsOverview({ onChanged }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {committees.map(c => {
+            const isSingle = c.is_single_judge;
+            const evaluationsRequired = isSingle ? 1 : 2;
             const pending = c.queue.filter(q => q.status === 'pending' || q.status === 'evaluated');
             const finalized = c.queue.filter(q => q.status === 'finalized');
 
@@ -198,6 +203,14 @@ export default function AdminFinalsOverview({ onChanged }) {
                   <div>
                     <strong style={{ fontSize: '1rem' }}>{c.name}</strong>
                     {c.room && <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginRight: 12 }}>📍 {c.room}</span>}
+                    <span className="level-badge" style={{
+                      background: isSingle ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)',
+                      borderColor: isSingle ? 'rgba(245,158,11,0.3)' : 'rgba(59,130,246,0.3)',
+                      color: isSingle ? '#fcd34d' : '#93c5fd',
+                      fontSize: '0.75rem', marginRight: 8
+                    }}>
+                      {isSingle ? 'محكم منفرد' : 'لجنة ثنائية'}
+                    </span>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <span className="level-badge" style={{ background: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.3)', color: '#fcd34d' }}>
@@ -226,7 +239,7 @@ export default function AdminFinalsOverview({ onChanged }) {
                         <tr>
                           <th>الطالب</th>
                           <th>الحالة</th>
-                          <th>تقييم الأعضاء</th>
+                          <th>{isSingle ? 'تقييم المحكم' : 'تقييم الأعضاء'}</th>
                           <th>متوسط النتيجة</th>
                           <th>تفاصيل التقييم</th>
                           <th>اعتماد النتيجة</th>
@@ -238,7 +251,7 @@ export default function AdminFinalsOverview({ onChanged }) {
                           const avg = evalCount > 0
                             ? Math.round(q.evaluations.reduce((s, e) => s + e.final_score, 0) / evalCount)
                             : null;
-                          const isReady = evalCount >= 2 && q.status !== 'finalized';
+                          const isReady = evalCount >= evaluationsRequired && q.status !== 'finalized';
                           const isFinalized = q.status === 'finalized';
 
                           let statusText = 'بانتظار التقييم';
@@ -246,12 +259,12 @@ export default function AdminFinalsOverview({ onChanged }) {
                           if (isFinalized) {
                             statusText = 'معتمد';
                             statusColor = '#6ee7b7';
-                          } else if (evalCount === 1) {
-                            statusText = 'تم تقييم محكم واحد';
-                            statusColor = '#93c5fd';
-                          } else if (evalCount >= 2) {
+                          } else if (evalCount >= evaluationsRequired) {
                             statusText = 'تم التقييم';
                             statusColor = '#6ee7b7';
+                          } else if (evalCount >= 1 && !isSingle) {
+                            statusText = 'تم تقييم محكم واحد';
+                            statusColor = '#93c5fd';
                           }
 
                           return (
@@ -305,7 +318,7 @@ export default function AdminFinalsOverview({ onChanged }) {
                                   </button>
                                 ) : (
                                   <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                                    {evalCount === 1 ? 'بانتظار المحكم الآخر' : '—'}
+                                    {isSingle ? 'بانتظار التقييم' : evalCount === 1 ? 'بانتظار المحكم الآخر' : '—'}
                                   </span>
                                 )}
                               </td>
@@ -333,6 +346,7 @@ export default function AdminFinalsOverview({ onChanged }) {
 
 function AdminEvalDetail({ queueItem, onClose }) {
   const evaluations = queueItem.evaluations || [];
+  const isSingle = evaluations.length === 1;
 
   return (
     <Modal title={`تفاصيل التقييم: ${queueItem.student?.name || ''}`} onClose={onClose}>
@@ -353,7 +367,7 @@ function AdminEvalDetail({ queueItem, onClose }) {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <strong style={{ fontSize: '1rem' }}>
-                    تحكيم {isFirst ? 'الأول' : 'الثاني'}: {e.evaluator_name}
+                    {isSingle ? 'تقييم المحكم' : `تحكيم ${isFirst ? 'الأول' : 'الثاني'}`}: {e.evaluator_name}
                   </strong>
                   <span className="level-badge" style={{
                     background: e.final_score >= 80 ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
@@ -367,6 +381,20 @@ function AdminEvalDetail({ queueItem, onClose }) {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {qs.map((q, qi) => {
+                    if (q.cancelled) {
+                      return (
+                        <div key={qi} style={{
+                          background: 'rgba(100,100,100,0.05)',
+                          borderRadius: 10, padding: '10px 14px',
+                          border: '1px solid rgba(100,100,100,0.15)',
+                          textAlign: 'center'
+                        }}>
+                          <span style={{ color: '#9ca3af', fontWeight: 600, fontSize: '0.9rem' }}>
+                            {labelForIndex(qi)} — ملغي
+                          </span>
+                        </div>
+                      );
+                    }
                     const ded = q.deductions || {};
                     const voice = q.voice_score || 0;
                     const totalDed = DEDUCTION_KEYS.reduce((s, c) => s + (ded[c] || 0) * (QUAL_DEDUCTIONS[c] || 0), 0);

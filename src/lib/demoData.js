@@ -58,8 +58,8 @@ function buildSeed() {
     ],
     message_reports: [],
     committees: [
-      { id: 'demo-committee-1', name: 'لجنة التحكيم الأولى', room: 'الغرفة 121', created_at: now },
-      { id: 'demo-committee-2', name: 'لجنة التحكيم الثانية', room: 'الغرفة 122', created_at: now }
+      { id: 'demo-committee-1', name: 'لجنة التحكيم الأولى', room: 'الغرفة 121', is_single_judge: false, created_at: now },
+      { id: 'demo-committee-2', name: 'لجنة التحكيم الثانية', room: 'الغرفة 122', is_single_judge: false, created_at: now }
     ],
     committee_members: [
       { id: 'demo-cm-1', committee_id: 'demo-committee-1', user_id: T1, is_head: true, created_at: now },

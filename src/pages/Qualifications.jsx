@@ -9,9 +9,6 @@ import FinalsEvaluationLockdown from '../components/FinalsEvaluationLockdown.jsx
 import AdminFinalsOverview from '../components/AdminFinalsOverview.jsx';
 import FinalsStats from '../components/FinalsStats.jsx';
 
-const STORAGE_KEY = 'waqf_eval_state';
-const META_KEY = 'waqf_eval_meta';
-
 export default function Qualifications() {
   const { user, isAdmin } = useAuth();
   const [committees, setCommittees] = useState([]);
@@ -51,6 +48,8 @@ export default function Qualifications() {
       const evals = eRes.data || [];
 
       const enriched = userCommittees.map(c => {
+        const isSingle = c.is_single_judge;
+        const evaluationsRequired = isSingle ? 1 : 2;
         const members = (memRes.data || []).filter(m => m.committee_id === c.id).map(m => ({
           ...m, teacher_name: usersMap[m.user_id] || ''
         }));
@@ -59,9 +58,9 @@ export default function Qualifications() {
           const evaluations = evals.filter(e => e.queue_id === q.id).map(e => ({
             ...e, evaluator_name: usersMap[e.evaluator_id] || ''
           }));
-          return { ...q, student, evaluations };
+          return { ...q, student, evaluations, evaluations_required: evaluationsRequired };
         });
-        return { ...c, members, queue };
+        return { ...c, is_single_judge: isSingle, members, queue };
       });
 
       setCommittees(enriched);
@@ -71,33 +70,29 @@ export default function Qualifications() {
 
   useEffect(() => { loadCommittees(); }, [loadCommittees]);
 
-  // استعادة جلسة تقييم لم تُرسل بعد (بعد تحديث الصفحة)
   useEffect(() => {
     if (loading || isAdmin) return;
-    // ابحث عن أي مفتاح تخزين يحوي جلسة تقييم نشطة
     const allKeys = Object.keys(localStorage);
-    const evalKey = allKeys.find(k => k.startsWith(STORAGE_KEY) && k !== STORAGE_KEY);
-    const metaKey = evalKey ? evalKey.replace(STORAGE_KEY, META_KEY) : null;
+    const evalKey = allKeys.find(k => k.startsWith('waqf_eval_state_'));
+    const metaKey = evalKey ? evalKey.replace('waqf_eval_state', 'waqf_eval_meta') : null;
     if (!metaKey) return;
 
     const metaRaw = localStorage.getItem(metaKey);
     if (!metaRaw) return;
 
     const meta = JSON.parse(metaRaw);
-    const queueId = evalKey.replace(`${STORAGE_KEY}_`, '');
+    const queueId = evalKey.replace('waqf_eval_state_', '');
     if (!queueId) return;
 
-    // ابحث عن اللجنة التي تخص المستخدم والطالب في الطابور
     const qRes = committees.flatMap(c =>
       (c.queue || []).filter(q => q.id === queueId).map(q => ({ ...q, committeeId: c.id }))
     );
 
-    // إن لم نجده في الذاكرة، نبني كياناً وهمياً من البيانات المحفوظة
     const item = qRes.length > 0 ? qRes[0] : {
       id: queueId,
       student: { name: meta.studentName, level: meta.level, matn: meta.matn },
       evaluations: [],
-      committee_member_count: meta.committeeMemberCount || 2
+      evaluations_required: meta.evaluations_required || 2
     };
 
     setScoringItem(item);

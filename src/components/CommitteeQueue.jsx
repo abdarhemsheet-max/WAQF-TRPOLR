@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { ar } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS } from '../utils/qualificationConfig.js';
-import { PlusIcon } from './Icons.jsx';
+import { PlusIcon, TrashIcon } from './Icons.jsx';
 import Modal from './Modal.jsx';
 import AddFinalStudent from './AddFinalStudent.jsx';
 import CommitteeDashboardHeader from './CommitteeDashboardHeader.jsx';
@@ -13,8 +14,12 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
   const [showAdd, setShowAdd] = useState(false);
   const [readyQ, setReadyQ] = useState(null);
   const [detailsQ, setDetailsQ] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
+  const toast = useToast();
   const isAdmin = user?.role === 'admin';
+  const isSingle = committee?.is_single_judge;
+  const evaluationsRequired = isSingle ? 1 : 2;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,10 +50,10 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
     setQueue(qRes.data.map(q => {
       const student = q.finals_student_id ? finalsMap[q.finals_student_id] : regMap[q.student_id];
       const evaluations = evals.filter(e => e.queue_id === q.id).map(e => ({ ...e, evaluator_name: usersMap[e.evaluator_id] || '' }));
-      return { ...q, student, evaluations };
+      return { ...q, student, evaluations, evaluations_required: evaluationsRequired };
     }));
     setLoading(false);
-  }, [committee.id]);
+  }, [committee.id, evaluationsRequired]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -56,7 +61,23 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
   const otherMember = committee.members?.find(m => m.user_id !== user.id);
 
   const handleReady = (q) => setReadyQ(q);
-  const handleStartEval = () => { if (readyQ) { setReadyQ(null); onEvaluate(readyQ); } };
+  const handleStartEval = () => { if (readyQ) { setReadyQ(null); onEvaluate({ ...readyQ, evaluations_required: evaluationsRequired }); } };
+
+  const handleDelete = async (q) => {
+    if (!confirm(`حذف الطالب "${q.student?.name}" من طابور التصفيات نهائياً؟`)) return;
+    setDeletingId(q.id);
+    const prev = queue;
+    setQueue(prev => prev.filter(qq => qq.id !== q.id));
+    try {
+      await supabase.from('committee_queue').delete().eq('id', q.id);
+      onChanged?.();
+    } catch (err) {
+      setQueue(prev);
+      toast.error('فشل حذف الطالب');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) return <div className="empty-state">جارٍ تحميل الطابور...</div>;
 
@@ -79,9 +100,10 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
             <tr>
               <th>الطالب</th>
               <th>الحالة</th>
-              <th>تقييم العضو</th>
+              <th>تقييم {isSingle ? 'المحكم' : 'الأعضاء'}</th>
               {isAdmin && <th>متوسط النتيجة</th>}
               <th>التحكيم</th>
+              {(isHead || isAdmin) && <th>حذف</th>}
             </tr>
           </thead>
           <tbody>
@@ -106,12 +128,12 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
               if (q.status === 'finalized') {
                 statusText = 'معتمد';
                 statusColor = '#6ee7b7';
-              } else if (evalCount === 1) {
-                statusText = 'تم تقييم محكم واحد';
-                statusColor = '#93c5fd';
-              } else if (evalCount >= 2) {
+              } else if (evalCount >= evaluationsRequired) {
                 statusText = 'تم التقييم';
                 statusColor = '#6ee7b7';
+              } else if (evalCount >= 1 && !isSingle) {
+                statusText = 'تم تقييم محكم واحد';
+                statusColor = '#93c5fd';
               }
 
               return (
@@ -162,7 +184,7 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
                           </div>
                         );
                       })}
-                      {!isAdmin && otherMember && !q.evaluations?.some(e => e.evaluator_id === otherMember.user_id) && (
+                      {!isAdmin && !isSingle && otherMember && !q.evaluations?.some(e => e.evaluator_id === otherMember.user_id) && (
                         <div style={{
                           display: 'flex', alignItems: 'center', gap: 6,
                           padding: '4px 8px', borderRadius: 6
@@ -208,11 +230,21 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
                     )}
                   </td>
+                  {(isHead || isAdmin) && (
+                    <td>
+                      <button className="btn-action edit-btn delete"
+                        onClick={() => handleDelete(q)}
+                        disabled={deletingId === q.id}
+                        style={{ padding: '6px 8px', opacity: deletingId === q.id ? 0.4 : 1 }}>
+                        <TrashIcon />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
             {queue.length === 0 && (
-              <tr><td colSpan={5}><div className="empty-state">لا يوجد طلاب في الطابور</div></td></tr>
+              <tr><td colSpan={(isHead || isAdmin) ? 6 : 5}><div className="empty-state">لا يوجد طلاب في الطابور</div></td></tr>
             )}
           </tbody>
         </table>
@@ -247,13 +279,13 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
       )}
 
       {detailsQ && (
-        <DetailsBreakdown queueItem={detailsQ} onClose={() => setDetailsQ(null)} />
+        <DetailsBreakdown queueItem={detailsQ} isSingle={isSingle} onClose={() => setDetailsQ(null)} />
       )}
     </div>
   );
 }
 
-function DetailsBreakdown({ queueItem, onClose }) {
+function DetailsBreakdown({ queueItem, isSingle, onClose }) {
   const evaluations = queueItem.evaluations || [];
 
   const labelForIndex = (i) => {
@@ -285,7 +317,7 @@ function DetailsBreakdown({ queueItem, onClose }) {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <strong style={{ fontSize: '1rem' }}>
-                    تحكيم رقم {idx + 1}: {e.evaluator_name}
+                    {isSingle ? 'تقييم المحكم' : `تحكيم رقم ${idx + 1}`}: {e.evaluator_name}
                   </strong>
                   <span className="level-badge" style={{
                     background: e.final_score >= 80 ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
@@ -297,8 +329,23 @@ function DetailsBreakdown({ queueItem, onClose }) {
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {qs.map((q, qi) => {
+                    const cancelled = q.cancelled;
+                    if (cancelled) {
+                      return (
+                        <div key={qi} style={{
+                          background: 'rgba(100,100,100,0.05)',
+                          borderRadius: 10, padding: '10px 14px',
+                          border: '1px solid rgba(100,100,100,0.15)',
+                          textAlign: 'center'
+                        }}>
+                          <span style={{ color: '#9ca3af', fontWeight: 600, fontSize: '0.9rem' }}>
+                            {labelForIndex(qi)} — ملغي
+                          </span>
+                        </div>
+                      );
+                    }
                     const ded = q.deductions || {};
                     const voice = q.voice_score || 0;
                     const totalDed = DEDUCTION_KEYS.reduce((s, c) => s + (ded[c] || 0) * (QUAL_DEDUCTIONS[c] || 0), 0);

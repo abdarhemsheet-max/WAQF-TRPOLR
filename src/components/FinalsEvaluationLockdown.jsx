@@ -15,9 +15,9 @@ function emptyDeductions() {
 
 function initQuestions() {
   return [
-    { index: 0, voiceScore: 0, deductions: emptyDeductions() },
-    { index: 1, voiceScore: 0, deductions: emptyDeductions() },
-    { index: 2, voiceScore: 0, deductions: emptyDeductions() }
+    { index: 0, voiceScore: 0, deductions: emptyDeductions(), cancelled: false },
+    { index: 1, voiceScore: 0, deductions: emptyDeductions(), cancelled: false },
+    { index: 2, voiceScore: 0, deductions: emptyDeductions(), cancelled: false }
   ];
 }
 
@@ -27,9 +27,10 @@ function questionScore(voiceScore, deductions) {
 }
 
 function totalPercentage(questions) {
-  if (questions.length === 0) return 0;
-  const total = questions.reduce((s, q) => s + questionScore(q.voiceScore, q.deductions), 0);
-  return Math.round(total / questions.length);
+  const active = questions.filter(q => !q.cancelled);
+  if (active.length === 0) return 0;
+  const total = active.reduce((s, q) => s + questionScore(q.voiceScore, q.deductions), 0);
+  return Math.round(total / active.length);
 }
 
 function labelForIndex(i) {
@@ -52,7 +53,8 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length >= 3) {
-          setQuestions(parsed);
+          const migrated = parsed.map(q => ({ ...q, cancelled: q.cancelled || false }));
+          setQuestions(migrated);
         }
       }
     } catch (_) {}
@@ -66,7 +68,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
         studentName: queueItem.student?.name || '',
         level: queueItem.student?.level || '',
         matn: queueItem.student?.matn || '',
-        committeeMemberCount: queueItem.committee_member_count || 2
+        evaluations_required: queueItem.evaluations_required || 2
       }));
     }
   }, [questions, queueItem.id, queueItem.student]);
@@ -100,7 +102,15 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
 
   const addQuestion = () => {
     setQuestions(prev => {
-      const next = [...prev, { index: prev.length, voiceScore: 0, deductions: emptyDeductions() }];
+      const next = [...prev, { index: prev.length, voiceScore: 0, deductions: emptyDeductions(), cancelled: false }];
+      persist(next);
+      return next;
+    });
+  };
+
+  const toggleCancel = (idx) => {
+    setQuestions(prev => {
+      const next = prev.map((q, i) => i === idx ? { ...q, cancelled: !q.cancelled } : q);
       persist(next);
       return next;
     });
@@ -138,11 +148,15 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
   const totalScore = useMemo(() => totalPercentage(questions), [questions]);
   const section = questions[currentSection];
 
-  const allVoicesValid = useMemo(() => questions.every(q => {
-    if (q.voiceScore === '' || q.voiceScore === 0) return false;
-    const n = Number(q.voiceScore);
-    return n >= 5 && n <= 9;
-  }), [questions]);
+  const allVoicesValid = useMemo(() => {
+    const active = questions.filter(q => !q.cancelled);
+    if (active.length === 0) return false;
+    return active.every(q => {
+      if (q.voiceScore === '' || q.voiceScore === 0) return false;
+      const n = Number(q.voiceScore);
+      return n >= 5 && n <= 9;
+    });
+  }, [questions]);
 
   const doSubmit = async () => {
     setShowConfirm(false);
@@ -150,11 +164,12 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
 
     const questionsPayload = questions.map(q => ({
       question_index: q.index,
-      voice_score: Number(q.voiceScore),
-      deductions: q.deductions
+      voice_score: q.cancelled ? 0 : Number(q.voiceScore),
+      deductions: q.deductions,
+      cancelled: q.cancelled
     }));
 
-    const totalVoice = questions.reduce((s, q) => s + Number(q.voiceScore), 0);
+    const totalVoice = questions.reduce((s, q) => s + (q.cancelled ? 0 : Number(q.voiceScore)), 0);
     const finalScore = totalPercentage(questions);
 
     const payload = {
@@ -167,7 +182,6 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
       final_score: finalScore
     };
 
-    // 1) Upsert — آمن في سباق التزامن (بدون deadlock)
     const { error } = await withRetry(() =>
       supabase.from('qualification_evaluations').upsert(payload, {
         onConflict: 'queue_id, evaluator_id',
@@ -179,14 +193,13 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
     localStorage.removeItem(`${STORAGE_KEY}_${queueItem.id}`);
     localStorage.removeItem(`${META_KEY}_${queueItem.id}`);
 
-    // 2) إعادة جلب العدد الحقيقي من قاعدة البيانات (OCC)
     const { count: actualCount, error: countError } = await withRetry(() =>
       supabase.from('qualification_evaluations')
         .select('id', { count: 'exact', head: true })
         .eq('queue_id', queueItem.id)
     );
 
-    const committeeSize = (queueItem.committee_member_count || 2);
+    const committeeSize = (queueItem.evaluations_required || 2);
     if (!countError && actualCount !== null && actualCount >= committeeSize) {
       await withRetry(() =>
         supabase.from('committee_queue').update({
@@ -200,6 +213,9 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
   };
 
   const scoreColor = totalScore >= 80 ? '#6ee7b7' : totalScore >= 60 ? '#fcd34d' : '#fca5a5';
+
+  const activeCount = questions.filter(q => !q.cancelled).length;
+  const cancelledCount = questions.filter(q => q.cancelled).length;
 
   return (
     <div className="eval-fullscreen" style={{ zIndex: 9999 }}>
@@ -224,18 +240,19 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
         background: 'rgba(0,0,0,0.15)'
       }}>
         {questions.map((q, i) => {
-          const sq = questionScore(q.voiceScore, q.deductions);
+          const sq = q.cancelled ? 0 : questionScore(q.voiceScore, q.deductions);
           const isDone = sq > 0;
           return (
             <button key={i} onClick={() => setCurrentSection(i)}
               className={`btn-action ${i === currentSection ? 'add' : ''} text-xs sm:text-sm py-1 sm:py-1.5`}
               style={{
                 flex: '1 0 auto', justifyContent: 'center',
-                background: i === currentSection ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
-                borderColor: i === currentSection ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)',
-                color: i === currentSection ? '#93c5fd' : 'var(--text-muted)'
+                background: q.cancelled ? 'rgba(100,100,100,0.15)' : i === currentSection ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
+                borderColor: q.cancelled ? 'rgba(100,100,100,0.3)' : i === currentSection ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)',
+                color: q.cancelled ? '#9ca3af' : i === currentSection ? '#93c5fd' : 'var(--text-muted)'
               }}>
-              {isDone ? '✓ ' : ''}{labelForIndex(i)}
+              {q.cancelled ? '🗙 ' : isDone ? '✓ ' : ''}{labelForIndex(i)}
+              {q.cancelled && <span className="mr-1" style={{ fontSize: '0.65rem', opacity: 0.7 }}>ملغي</span>}
             </button>
           );
         })}
@@ -253,79 +270,111 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
           <div className="sticky top-0 z-10 flex justify-between items-center mb-3 sm:mb-4 py-1 sm:py-2" style={{
             background: '#0f172a'
           }}>
-            <h3 className="text-sm sm:text-lg font-semibold m-0">{labelForIndex(currentSection)}</h3>
-            <button onClick={handleUndo} disabled={historyRef.current.length === 0}
-              className="btn-action"
-              style={{ padding: '6px 16px', fontSize: '0.82rem', opacity: historyRef.current.length === 0 ? 0.3 : 1 }}>
-              تراجع
-            </button>
-          </div>
-
-          <div style={{ marginBottom: 20, padding: '16px 20px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <p style={{ color: 'var(--text-muted)', marginBottom: 10, fontSize: '0.85rem' }}>
-              الصوت والأداء — من {VOICE_MAX} (يُسمح {VOICE_MAX === 'عشرة' ? '5 إلى 9' : '5-9'})
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <input type="number" min="5" max="9" step="0.5"
-                value={section.voiceScore === 0 ? '' : section.voiceScore}
-                onChange={e => updateVoice(currentSection, e.target.value)}
-                placeholder="5-9"
+            <h3 className="text-sm sm:text-lg font-semibold m-0">
+              {labelForIndex(currentSection)}
+              {section.cancelled && <span className="mr-2" style={{ color: '#9ca3af', fontSize: '0.8rem' }}>(ملغي)</span>}
+            </h3>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => toggleCancel(currentSection)}
+                className="btn-action"
                 style={{
-                  width: 80, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)',
-                  color: 'var(--text-main)', padding: '10px 12px', borderRadius: 12, textAlign: 'center',
-                  fontSize: '1.3rem', fontWeight: 700, direction: 'ltr'
-                }}
-                autoFocus
-              />
-              <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>/ {VOICE_MAX}</span>
+                  padding: '6px 16px', fontSize: '0.82rem',
+                  background: section.cancelled ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)',
+                  borderColor: section.cancelled ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)',
+                  color: section.cancelled ? '#6ee7b7' : '#fca5a5'
+                }}>
+                {section.cancelled ? 'إلغاء الإلغاء' : 'إلغاء السؤال'}
+              </button>
+              <button onClick={handleUndo} disabled={historyRef.current.length === 0}
+                className="btn-action"
+                style={{ padding: '6px 16px', fontSize: '0.82rem', opacity: historyRef.current.length === 0 ? 0.3 : 1 }}>
+                تراجع
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
-            {DEDUCTION_KEYS.map(key => {
-              const count = section.deductions[key] || 0;
-              const val = QUAL_DEDUCTIONS[key] || 0;
-              const hasCount = count > 0;
-              return (
-                <div key={key} onClick={() => inc(currentSection, key)}
-                  role="button" tabIndex={0}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inc(currentSection, key); } }}
-                  style={{
-                    cursor: 'pointer', userSelect: 'none',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                    justifyContent: 'center', gap: 4,
-                    background: hasCount ? 'rgba(252,165,165,0.08)' : 'rgba(255,255,255,0.03)',
-                    borderRadius: 14, padding: '12px 8px', minHeight: 80,
-                    border: hasCount ? '1px solid rgba(252,165,165,0.25)' : '1px solid rgba(255,255,255,0.06)',
-                    transition: 'background 0.1s, border-color 0.1s'
-                  }}>
-                  <span style={{
-                    fontSize: '0.78rem', fontWeight: hasCount ? 600 : 400, textAlign: 'center',
-                    color: hasCount ? '#fca5a5' : 'var(--text-main)', lineHeight: 1.3
-                  }}>{key}</span>
-                  <span style={{
-                    fontWeight: 700, fontSize: '1.1rem', textAlign: 'center',
-                    color: hasCount ? '#fca5a5' : 'var(--text-muted)'
-                  }}>{ar(count)}</span>
-                  <span style={{
-                    color: '#fca5a5', fontSize: '0.7rem', textAlign: 'center',
-                    fontWeight: 500
-                  }}>-{val.toFixed(1)}</span>
+          {section.cancelled ? (
+            <div style={{
+              padding: '32px 20px', borderRadius: 12, textAlign: 'center',
+              background: 'rgba(100,100,100,0.05)', border: '1px solid rgba(100,100,100,0.15)'
+            }}>
+              <div style={{ fontSize: '2rem', marginBottom: 8 }}>🗙</div>
+              <p style={{ color: '#9ca3af', fontSize: '1rem' }}>تم إلغاء هذا السؤال ولن يُحتسب في النتيجة النهائية</p>
+              <button onClick={() => toggleCancel(currentSection)}
+                className="btn-action"
+                style={{ marginTop: 12, padding: '8px 24px', background: 'rgba(16,185,129,0.12)', borderColor: 'rgba(16,185,129,0.3)', color: '#6ee7b7' }}>
+                إلغاء الإلغاء
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 20, padding: '16px 20px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <p style={{ color: 'var(--text-muted)', marginBottom: 10, fontSize: '0.85rem' }}>
+                  الصوت والأداء — من {VOICE_MAX} (يُسمح {VOICE_MAX === 'عشرة' ? '5 إلى 9' : '5-9'})
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <input type="number" min="5" max="9" step="0.5"
+                    value={section.voiceScore === 0 ? '' : section.voiceScore}
+                    onChange={e => updateVoice(currentSection, e.target.value)}
+                    placeholder="5-9"
+                    style={{
+                      width: 80, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)',
+                      color: 'var(--text-main)', padding: '10px 12px', borderRadius: 12, textAlign: 'center',
+                      fontSize: '1.3rem', fontWeight: 700, direction: 'ltr'
+                    }}
+                    autoFocus
+                  />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>/ {VOICE_MAX}</span>
                 </div>
-              );
-            })}
-          </div>
+              </div>
 
-          <div style={{
-            marginTop: 20, padding: '14px 18px', borderRadius: 12,
-            background: `${scoreColor}12`, border: `1px solid ${scoreColor}30`,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-          }}>
-            <span style={{ color: 'var(--text-muted)' }}>مجموع السؤال</span>
-            <strong style={{ fontSize: '1.2rem', color: scoreColor }}>
-              {ar(Math.round(questionScore(section.voiceScore, section.deductions)))}%
-            </strong>
-          </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+                {DEDUCTION_KEYS.map(key => {
+                  const count = section.deductions[key] || 0;
+                  const val = QUAL_DEDUCTIONS[key] || 0;
+                  const hasCount = count > 0;
+                  return (
+                    <div key={key} onClick={() => inc(currentSection, key)}
+                      role="button" tabIndex={0}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inc(currentSection, key); } }}
+                      style={{
+                        cursor: 'pointer', userSelect: 'none',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center',
+                        justifyContent: 'center', gap: 4,
+                        background: hasCount ? 'rgba(252,165,165,0.08)' : 'rgba(255,255,255,0.03)',
+                        borderRadius: 14, padding: '12px 8px', minHeight: 80,
+                        border: hasCount ? '1px solid rgba(252,165,165,0.25)' : '1px solid rgba(255,255,255,0.06)',
+                        transition: 'background 0.1s, border-color 0.1s'
+                      }}>
+                      <span style={{
+                        fontSize: '0.78rem', fontWeight: hasCount ? 600 : 400, textAlign: 'center',
+                        color: hasCount ? '#fca5a5' : 'var(--text-main)', lineHeight: 1.3
+                      }}>{key}</span>
+                      <span style={{
+                        fontWeight: 700, fontSize: '1.1rem', textAlign: 'center',
+                        color: hasCount ? '#fca5a5' : 'var(--text-muted)'
+                      }}>{ar(count)}</span>
+                      <span style={{
+                        color: '#fca5a5', fontSize: '0.7rem', textAlign: 'center',
+                        fontWeight: 500
+                      }}>-{val.toFixed(1)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{
+                marginTop: 20, padding: '14px 18px', borderRadius: 12,
+                background: `${scoreColor}12`, border: `1px solid ${scoreColor}30`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span style={{ color: 'var(--text-muted)' }}>مجموع السؤال</span>
+                <strong style={{ fontSize: '1.2rem', color: scoreColor }}>
+                  {ar(Math.round(questionScore(section.voiceScore, section.deductions)))}%
+                </strong>
+              </div>
+            </>
+          )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'space-between' }}>
             <div>
@@ -349,6 +398,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
       <div className="eval-footer">
         <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
           {questions.map((q, i) => {
+            if (q.cancelled) return `${labelForIndex(i)}: ملغي${i < questions.length - 1 ? ' | ' : ''}`;
             const s = Math.round(questionScore(q.voiceScore, q.deductions));
             return `${labelForIndex(i)}: ${ar(s)}%${i < questions.length - 1 ? ' | ' : ''}`;
           })}
@@ -362,6 +412,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
             <h2 style={{ fontSize: '1.15rem', marginBottom: 12 }}>هل أنت متأكد من تسليم التقييم؟</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20 }}>
               {queueItem.student?.name} — النتيجة النهائية: {ar(totalScore)}%
+              {cancelledCount > 0 && <span style={{ display: 'block', marginTop: 4 }}>({ar(cancelledCount)} أسئلة ملغية من أصل {ar(questions.length)})</span>}
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button className="btn-primary" onClick={doSubmit} style={{ width: 'auto', padding: '10px 36px', background: '#166534' }}>
