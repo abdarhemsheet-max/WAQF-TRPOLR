@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import TeacherDashboard from './pages/TeacherDashboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import Qualifications from './pages/Qualifications.jsx';
+import Leaderboard from './pages/Leaderboard.jsx';
 
 export default function App() {
   return (
@@ -59,6 +60,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Qualifications />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/leaderboard"
+          element={
+            <ProtectedRoute>
+              <Leaderboard />
             </ProtectedRoute>
           }
         />
