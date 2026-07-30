@@ -14,6 +14,8 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
   const [readyQ, setReadyQ] = useState(null);
   const [detailsQ, setDetailsQ] = useState(null);
 
+  const isAdmin = user?.role === 'admin';
+
   const load = useCallback(async () => {
     setLoading(true);
     const [qRes, eRes] = await Promise.all([
@@ -78,7 +80,7 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
               <th>الطالب</th>
               <th>الحالة</th>
               <th>تقييم العضو</th>
-              <th>متوسط النتيجة</th>
+              {isAdmin && <th>متوسط النتيجة</th>}
               <th>التحكيم</th>
             </tr>
           </thead>
@@ -87,10 +89,17 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
               const myEval = q.evaluations?.find(e => e.evaluator_id === user.id);
               const otherEval = q.evaluations?.find(e => e.evaluator_id !== user.id);
               const evalCount = q.evaluations?.length || 0;
-              const avg = evalCount > 0
-                ? Math.round(q.evaluations.reduce((s, e) => s + e.final_score, 0) / evalCount)
-                : null;
-              const canEvaluate = q.status !== 'finalized' && !myEval;
+
+              let avg = null;
+              let canEvaluate;
+              if (isAdmin) {
+                avg = evalCount > 0
+                  ? Math.round(q.evaluations.reduce((s, e) => s + e.final_score, 0) / evalCount)
+                  : null;
+                canEvaluate = false;
+              } else {
+                canEvaluate = q.status !== 'finalized' && !myEval;
+              }
 
               let statusText = 'بانتظار التقييم';
               let statusColor = '#fcd34d';
@@ -119,42 +128,73 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
                     }}>{statusText}</span>
                   </td>
                   <td>
-                    {q.evaluations?.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {q.evaluations.map(e => {
-                          const isMe = e.evaluator_id === user.id;
-                          return (
-                            <div key={e.id} style={{
-                              display: 'flex', alignItems: 'center', gap: 6,
-                              padding: '4px 8px', borderRadius: 6,
-                              background: isMe ? 'rgba(59,130,246,0.08)' : 'transparent'
-                            }}>
-                              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                                {e.evaluator_name}
-                              </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {q.evaluations.map(e => {
+                        const isMe = e.evaluator_id === user.id;
+                        const showScore = isAdmin || isMe;
+                        return (
+                          <div key={e.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            padding: '4px 8px', borderRadius: 6,
+                            background: isMe ? 'rgba(59,130,246,0.08)' : 'transparent'
+                          }}>
+                            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                              {e.evaluator_name}
+                            </span>
+                            {showScore ? (
                               <strong style={{
                                 fontSize: '0.85rem',
                                 color: e.final_score >= 80 ? '#6ee7b7' : e.final_score >= 60 ? '#fcd34d' : '#fca5a5'
                               }}>
                                 {ar(Math.round(e.final_score))}%
                               </strong>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>—</span>
-                    )}
+                            ) : (
+                              <span className="level-badge" style={{
+                                background: 'rgba(16,185,129,0.1)',
+                                borderColor: 'rgba(16,185,129,0.25)',
+                                color: '#6ee7b7',
+                                fontSize: '0.75rem',
+                                padding: '1px 8px'
+                              }}>
+                                تم التقييم
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {!isAdmin && otherMember && !q.evaluations?.some(e => e.evaluator_id === otherMember.user_id) && (
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          padding: '4px 8px', borderRadius: 6
+                        }}>
+                          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                            {otherMember.name}
+                          </span>
+                          <span className="level-badge" style={{
+                            background: 'rgba(245,158,11,0.1)',
+                            borderColor: 'rgba(245,158,11,0.25)',
+                            color: '#fcd34d',
+                            fontSize: '0.75rem',
+                            padding: '1px 8px'
+                          }}>
+                            في الانتظار
+                          </span>
+                        </div>
+                      )}
+                      {q.evaluations?.length === 0 && <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                    </div>
                   </td>
-                  <td>
-                    {avg !== null ? (
-                      <strong style={{ fontSize: '1rem', color: avg >= 80 ? '#6ee7b7' : avg >= 60 ? '#fcd34d' : '#fca5a5' }}>
-                        {ar(avg)}%
-                      </strong>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>—</span>
-                    )}
-                  </td>
+                  {isAdmin && (
+                    <td>
+                      {avg !== null ? (
+                        <strong style={{ fontSize: '1rem', color: avg >= 80 ? '#6ee7b7' : avg >= 60 ? '#fcd34d' : '#fca5a5' }}>
+                          {ar(avg)}%
+                        </strong>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                      )}
+                    </td>
+                  )}
                   <td>
                     {canEvaluate ? (
                       <button className="btn-action add" onClick={() => handleReady(q)}>
