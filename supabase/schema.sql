@@ -361,3 +361,10 @@ select
     true,
     null
 where not exists (select 1 from public.message_templates where is_locked = true);
+
+-- ------------------------------------------------------------
+-- 6) نظام التصفية — راجع migrations/005_add_qualifications.sql
+-- ------------------------------------------------------------
+-- المحتوى الكامل موجود في ملف الترحيل المستقل:
+--   supabase/migrations/005_add_qualifications.sql
+-- شغّله في SQL Editor بعد هذا الملف إن احتجت التصفية.
