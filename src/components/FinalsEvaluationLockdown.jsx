@@ -36,7 +36,7 @@ function labelForIndex(i) {
   return `السؤال ${names[i] || i + 1}`;
 }
 
-export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted }) {
+export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted, isHead }) {
   const [questions, setQuestions] = useState(initQuestions);
   const [currentSection, setCurrentSection] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -216,7 +216,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
             </button>
           );
         })}
-        {questions.length < 5 && (
+        {isHead && questions.length < 5 && (
           <button onClick={addQuestion}
             className="btn-action add"
             style={{ flex: '0 0 auto', fontSize: '0.82rem', padding: '6px 14px' }}>

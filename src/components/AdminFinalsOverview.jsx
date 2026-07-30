@@ -1,8 +1,59 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { ar } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS } from '../utils/qualificationConfig.js';
 import Modal from './Modal.jsx';
+
+function labelForIndex(i) {
+  const names = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'];
+  return `السؤال ${names[i] || i + 1}`;
+}
+
+function questionsFor(e) {
+  const rawDed = e.deductions;
+  if (Array.isArray(rawDed) && rawDed.length > 0) return rawDed;
+  return [{ question_index: 0, voice_score: e.voice_score || 0, deductions: rawDed || {} }];
+}
+
+function exportCSV(queueItem) {
+  const evals = queueItem.evaluations || [];
+  const studentName = queueItem.student?.name || '';
+  const avg = evals.length > 0
+    ? Math.round(evals.reduce((s, e) => s + e.final_score, 0) / evals.length)
+    : 0;
+
+  const rows = [];
+  const header = ['اسم الطالب', 'المحكم', 'النتيجة النهائية', 'متوسط النتيجة',
+    'السؤال', 'الصوت', 'الخصميات'];
+  rows.push(header.join(','));
+
+  evals.forEach(e => {
+    const qs = questionsFor(e);
+    qs.forEach((q, qi) => {
+      const ded = q.deductions || {};
+      const voice = q.voice_score || 0;
+      const activeDed = DEDUCTION_KEYS.filter(c => (ded[c] || 0) > 0)
+        .map(c => `${c}:${ded[c]}`).join('; ');
+      rows.push([
+        `"${studentName}"`,
+        `"${e.evaluator_name || ''}"`,
+        Math.round(e.final_score),
+        avg,
+        labelForIndex(qi),
+        voice,
+        `"${activeDed}"`
+      ].join(','));
+    });
+  });
+
+  const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `تقييم_${studentName}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function AdminFinalsOverview({ onChanged }) {
   const [committees, setCommittees] = useState([]);
@@ -81,7 +132,6 @@ export default function AdminFinalsOverview({ onChanged }) {
           {committees.map(c => {
             const pending = c.queue.filter(q => q.status === 'pending' || q.status === 'evaluated');
             const finalized = c.queue.filter(q => q.status === 'finalized');
-            const head = c.members.find(m => m.is_head);
 
             return (
               <div key={c.id} style={{
@@ -123,6 +173,7 @@ export default function AdminFinalsOverview({ onChanged }) {
                           <th>الحالة</th>
                           <th>تقييم الأعضاء</th>
                           <th>متوسط النتيجة</th>
+                          <th>تفاصيل التقييم</th>
                           <th>اعتماد النتيجة</th>
                         </tr>
                       </thead>
@@ -150,12 +201,7 @@ export default function AdminFinalsOverview({ onChanged }) {
 
                           return (
                             <tr key={q.id}>
-                              <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => setDetailsQ(q)}>
-                                {q.student?.name || '—'}
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginRight: 8, display: 'inline-block' }}>
-                                  ℹ️
-                                </span>
-                              </td>
+                              <td style={{ fontWeight: 600 }}>{q.student?.name || '—'}</td>
                               <td>
                                 <span className="level-badge" style={{
                                   background: `${statusColor}1A`, borderColor: `${statusColor}40`, color: statusColor
@@ -180,6 +226,15 @@ export default function AdminFinalsOverview({ onChanged }) {
                                 ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                               </td>
                               <td>
+                                {evalCount > 0 && (
+                                  <button className="btn-action"
+                                    onClick={() => setDetailsQ(q)}
+                                    style={{ padding: '4px 12px', fontSize: '0.78rem' }}>
+                                    عرض
+                                  </button>
+                                )}
+                              </td>
+                              <td>
                                 {isReady ? (
                                   <button className="btn-primary"
                                     onClick={() => handleFinalize(q)}
@@ -188,11 +243,11 @@ export default function AdminFinalsOverview({ onChanged }) {
                                     {finalizing === q.id ? '...' : 'اعتماد'}
                                   </button>
                                 ) : isFinalized ? (
-                                  <span className="level-badge" style={{
-                                    background: 'rgba(16,185,129,0.1)',
-                                    borderColor: 'rgba(16,185,129,0.3)',
-                                    color: '#6ee7b7'
-                                  }}>✓ معتمد</span>
+                                  <button className="btn-action add"
+                                    onClick={() => exportCSV(q)}
+                                    style={{ padding: '6px 12px', fontSize: '0.78rem' }}>
+                                    تنزيل إكسل
+                                  </button>
                                 ) : (
                                   <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
                                     {evalCount === 1 ? 'بانتظار المحكم الآخر' : '—'}
@@ -215,45 +270,35 @@ export default function AdminFinalsOverview({ onChanged }) {
       )}
 
       {detailsQ && (
-        <AdminDetailsBreakdown queueItem={detailsQ} onClose={() => setDetailsQ(null)} />
+        <AdminEvalDetail queueItem={detailsQ} onClose={() => setDetailsQ(null)} />
       )}
     </div>
   );
 }
 
-function AdminDetailsBreakdown({ queueItem, onClose }) {
+function AdminEvalDetail({ queueItem, onClose }) {
   const evaluations = queueItem.evaluations || [];
 
-  const labelForIndex = (i) => {
-    const names = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'];
-    return `السؤال ${names[i] || i + 1}`;
-  };
-
-  const questionsFor = (e) => {
-    const rawDed = e.deductions;
-    if (Array.isArray(rawDed) && rawDed.length > 0) return rawDed;
-    return [{ question_index: 0, voice_score: e.voice_score || 0, deductions: rawDed || {} }];
-  };
-
   return (
-    <Modal title={`تفاصيل التحكيم: ${queueItem.student?.name || ''}`} onClose={onClose}>
+    <Modal title={`تفاصيل التقييم: ${queueItem.student?.name || ''}`} onClose={onClose}>
       {evaluations.length === 0 ? (
         <div className="empty-state">لا توجد تقييمات بعد</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {evaluations.map((e, idx) => {
+          {evaluations.map((e, ei) => {
             const qs = questionsFor(e);
-            const boxColor = idx === 0 ? 'rgba(59,130,246,0.08)' : 'rgba(16,185,129,0.08)';
-            const boxBorder = idx === 0 ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.25)';
+            const isFirst = ei === 0;
+            const boxColor = isFirst ? 'rgba(59,130,246,0.08)' : 'rgba(16,185,129,0.08)';
+            const boxBorder = isFirst ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.25)';
 
             return (
-              <div key={e.id || idx} style={{
+              <div key={e.id || ei} style={{
                 background: boxColor, border: `1px solid ${boxBorder}`,
                 borderRadius: 16, padding: '16px 20px'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <strong style={{ fontSize: '1rem' }}>
-                    تحكيم رقم {idx + 1}: {e.evaluator_name}
+                    تحكيم {isFirst ? 'الأول' : 'الثاني'}: {e.evaluator_name}
                   </strong>
                   <span className="level-badge" style={{
                     background: e.final_score >= 80 ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
@@ -271,6 +316,7 @@ function AdminDetailsBreakdown({ queueItem, onClose }) {
                     const voice = q.voice_score || 0;
                     const totalDed = DEDUCTION_KEYS.reduce((s, c) => s + (ded[c] || 0) * (QUAL_DEDUCTIONS[c] || 0), 0);
                     const qScore = Math.max(0, 10 - totalDed + Number(voice));
+                    const activeDed = DEDUCTION_KEYS.filter(c => (ded[c] || 0) > 0);
 
                     return (
                       <div key={qi} style={{
@@ -280,22 +326,28 @@ function AdminDetailsBreakdown({ queueItem, onClose }) {
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{labelForIndex(qi)}</span>
-                          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: qScore >= 7 ? '#6ee7b7' : '#fcd34d' }}>
                             {ar(Math.round(qScore))}/عشرة
                           </span>
                         </div>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                          <span className="teacher-badge" style={{
+                            background: 'rgba(147,197,253,0.1)', borderColor: 'rgba(147,197,253,0.2)',
+                            color: '#93c5fd', fontSize: '0.72rem'
+                          }}>
                             الصوت: {ar(voice)}/عشرة
                           </span>
-                          {DEDUCTION_KEYS.filter(c => (ded[c] || 0) > 0).map(c => (
+                          {activeDed.map(c => (
                             <span key={c} className="teacher-badge" style={{
                               background: 'rgba(252,165,165,0.1)', borderColor: 'rgba(252,165,165,0.2)',
-                              color: '#fca5a5', fontSize: '0.72rem', padding: '2px 8px'
+                              color: '#fca5a5', fontSize: '0.72rem'
                             }}>
                               {c}: {ar(ded[c])}× -{QUAL_DEDUCTIONS[c]}
                             </span>
                           ))}
+                          {activeDed.length === 0 && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>—</span>
+                          )}
                         </div>
                       </div>
                     );

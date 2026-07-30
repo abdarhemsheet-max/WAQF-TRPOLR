@@ -105,6 +105,7 @@ export default function Qualifications() {
   const userCommittee = committees.find(c =>
     c.members?.some(m => m.user_id === user.id)
   );
+  const isHead = userCommittee?.members?.some(m => m.user_id === user.id && m.is_head);
 
   const handleSaved = () => {
     setScoringItem(null);
@@ -130,6 +131,7 @@ export default function Qualifications() {
             <FinalsEvaluationLockdown
               queueItem={scoringItem}
               user={user}
+              isHead={isHead}
               onSubmitted={handleSaved}
             />
           ) : (
