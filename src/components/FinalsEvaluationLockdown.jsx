@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { withRetry } from '../utils/retry.js';
 import { ar } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS, totalDeductionAmount, VOICE_MAX } from '../utils/qualificationConfig.js';
 import Modal from './Modal.jsx';
@@ -164,18 +165,32 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
       final_score: finalScore
     };
 
-    const { error } = await supabase.from('qualification_evaluations').insert(payload);
+    // 1) Upsert — آمن في سباق التزامن (بدون deadlock)
+    const { error } = await withRetry(() =>
+      supabase.from('qualification_evaluations').upsert(payload, {
+        onConflict: 'queue_id, evaluator_id',
+        ignoreDuplicates: false
+      })
+    );
     if (error) { alert('فشل الحفظ: ' + error.message); setSaving(false); return; }
 
     localStorage.removeItem(`${STORAGE_KEY}_${queueItem.id}`);
     localStorage.removeItem(`${META_KEY}_${queueItem.id}`);
 
-    const allEvals = [...(queueItem.evaluations || []), payload];
+    // 2) إعادة جلب العدد الحقيقي من قاعدة البيانات (OCC)
+    const { count: actualCount, error: countError } = await withRetry(() =>
+      supabase.from('qualification_evaluations')
+        .select('id', { count: 'exact', head: true })
+        .eq('queue_id', queueItem.id)
+    );
+
     const committeeSize = (queueItem.committee_member_count || 2);
-    if (allEvals.length >= committeeSize) {
-      await supabase.from('committee_queue').update({
-        status: 'evaluated', evaluated_at: new Date().toISOString()
-      }).eq('id', queueItem.id);
+    if (!countError && actualCount !== null && actualCount >= committeeSize) {
+      await withRetry(() =>
+        supabase.from('committee_queue').update({
+          status: 'evaluated', evaluated_at: new Date().toISOString()
+        }).eq('id', queueItem.id)
+      );
     }
 
     onSubmitted(payload);

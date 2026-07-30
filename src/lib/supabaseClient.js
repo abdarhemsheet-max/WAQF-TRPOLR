@@ -1,6 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 import { mockClient } from './mockClient.js';
 
+/**
+ * ============================================================
+ *  Connection Pooling (تجمع الاتصالات)
+ * ============================================================
+ * الـ JS client يتصل بـ Supabase عبر API Gateway الذي يدير
+ * تجمع الاتصالات تلقائياً — لا حاجة لتعديل.
+ *
+ * للاتصال المباشر بـ PostgreSQL عبر Transaction Pooler:
+ *   VITE_SUPABASE_URL="postgresql://{user}:{pass}@aws-0-{region}.pooler.supabase.com:6543/postgres"
+ * وفعّل "Use connection pooler" في Supabase > Settings > Database.
+ *
+ * ملاحظة: الـ JS client لا يستخدم connection string مباشرةً؛
+ * يُستخدم pooler فقط عند الاتصال المباشر (psql، pgAdmin، إلخ).
+ * ============================================================
+ */
+
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
