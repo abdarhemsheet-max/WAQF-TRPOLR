@@ -185,37 +185,34 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
 
   return (
     <div className="eval-fullscreen" style={{ zIndex: 9999 }}>
-      <div style={{
-        background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.08)',
-        padding: '10px 20px', display: 'flex', justifyContent: 'space-between',
-        alignItems: 'center', flexShrink: 0
+      <div className="flex justify-between items-center flex-shrink-0 px-3 sm:px-5 py-1.5 sm:py-2.5" style={{
+        background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.08)'
       }}>
         <div>
-          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{queueItem.student?.name || 'الطالب'}</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginRight: 12 }}>
+          <span className="text-xs sm:text-sm font-semibold">{queueItem.student?.name || 'الطالب'}</span>
+          <span className="hidden sm:inline text-xs mr-3" style={{ color: 'var(--text-muted)' }}>
             {queueItem.student?.level} · {queueItem.student?.matn}
           </span>
         </div>
-        <div className="eval-score-badge" style={{
-          background: `${scoreColor}1A`, borderColor: `${scoreColor}40`, color: scoreColor,
-          padding: '8px 24px', fontSize: '1.1rem'
+        <div className="eval-score-badge px-3 py-1 sm:px-6 sm:py-2 text-xs sm:text-sm" style={{
+          background: `${scoreColor}1A`, borderColor: `${scoreColor}40`, color: scoreColor
         }}>
           النتيجة النهائية: {ar(totalScore)}%
         </div>
       </div>
 
-      <div style={{
-        display: 'flex', gap: 8, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(0,0,0,0.15)', overflowX: 'auto', flexWrap: 'wrap'
+      <div className="flex gap-1 sm:gap-2 px-2 sm:px-5 py-1.5 sm:py-2.5 flex-wrap overflow-x-auto" style={{
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(0,0,0,0.15)'
       }}>
         {questions.map((q, i) => {
           const sq = questionScore(q.voiceScore, q.deductions);
           const isDone = sq > 0;
           return (
             <button key={i} onClick={() => setCurrentSection(i)}
-              className={`btn-action ${i === currentSection ? 'add' : ''}`}
+              className={`btn-action ${i === currentSection ? 'add' : ''} text-xs sm:text-sm py-1 sm:py-1.5`}
               style={{
-                flex: '1 0 auto', justifyContent: 'center', fontSize: '0.82rem',
+                flex: '1 0 auto', justifyContent: 'center',
                 background: i === currentSection ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
                 borderColor: i === currentSection ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)',
                 color: i === currentSection ? '#93c5fd' : 'var(--text-muted)'
@@ -226,8 +223,8 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
         })}
         {isHead && questions.length < 5 && (
           <button onClick={addQuestion}
-            className="btn-action add"
-            style={{ flex: '0 0 auto', fontSize: '0.82rem', padding: '6px 14px' }}>
+            className="btn-action add text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1.5"
+            style={{ flex: '0 0 auto' }}>
             + إضافة سؤال
           </button>
         )}
@@ -235,11 +232,10 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
 
       <div className="eval-table-area">
         <div className="glass-panel" style={{ maxWidth: 700, margin: '0 auto' }}>
-          <div className="sticky top-0 z-10" style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            marginBottom: 16, background: '#0f172a', padding: '8px 0'
+          <div className="sticky top-0 z-10 flex justify-between items-center mb-3 sm:mb-4 py-1 sm:py-2" style={{
+            background: '#0f172a'
           }}>
-            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>{labelForIndex(currentSection)}</h3>
+            <h3 className="text-sm sm:text-lg font-semibold m-0">{labelForIndex(currentSection)}</h3>
             <button onClick={handleUndo} disabled={historyRef.current.length === 0}
               className="btn-action"
               style={{ padding: '6px 16px', fontSize: '0.82rem', opacity: historyRef.current.length === 0 ? 0.3 : 1 }}>
