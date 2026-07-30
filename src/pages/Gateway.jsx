@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import TopBar from '../components/TopBar.jsx';
-import { BookIcon, StarIcon, ChartIcon } from '../components/Icons.jsx';
+import { BookIcon, StarIcon } from '../components/Icons.jsx';
 
 /** بوابة النظام — المدخل الوحيد إلى لوحة التحكم */
 export default function Gateway() {
@@ -51,21 +51,6 @@ export default function Gateway() {
           <p>لجان التحكيم وتقييم الطلاب</p>
         </div>
 
-        <div
-          className="gateway-card"
-          onClick={() => navigate('/leaderboard')}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') navigate('/leaderboard');
-          }}
-        >
-          <div className="icon-circle">
-            <ChartIcon />
-          </div>
-          <h2>لوحة الشرف والنتائج النهائية</h2>
-          <p>عرض نتائج التصفية مرتبة حسب المستوى</p>
-        </div>
       </div>
       </div>
     </div>

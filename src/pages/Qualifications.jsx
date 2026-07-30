@@ -8,12 +8,14 @@ import CommitteeQueue from '../components/CommitteeQueue.jsx';
 import FinalsEvaluationLockdown from '../components/FinalsEvaluationLockdown.jsx';
 import AdminFinalsOverview from '../components/AdminFinalsOverview.jsx';
 import FinalsStats from '../components/FinalsStats.jsx';
+import Leaderboard from './Leaderboard.jsx';
 
 export default function Qualifications() {
   const { user, isAdmin } = useAuth();
   const [committees, setCommittees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scoringItem, setScoringItem] = useState(null);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const loadCommittees = useCallback(async () => {
     setLoading(true);
@@ -136,9 +138,36 @@ export default function Qualifications() {
                 <>
                   <FinalsStats committees={committees} />
                   <CommitteeManagement onChanged={loadCommittees} />
-                  <div style={{ marginTop: 24 }}>
-                    <AdminFinalsOverview onChanged={loadCommittees} />
+
+                  <div style={{
+                    display: 'flex', gap: 8, marginTop: 24, marginBottom: 8,
+                    borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12,
+                  }}>
+                    <button className="btn-action"
+                      onClick={() => setShowLeaderboard(false)}
+                      style={{
+                        background: !showLeaderboard ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                        color: !showLeaderboard ? '#fff' : 'var(--text-main)',
+                        border: !showLeaderboard ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                      }}>
+                      نظرة عامة
+                    </button>
+                    <button className="btn-action"
+                      onClick={() => setShowLeaderboard(true)}
+                      style={{
+                        background: showLeaderboard ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                        color: showLeaderboard ? '#fff' : 'var(--text-main)',
+                        border: showLeaderboard ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                      }}>
+                      🏆 لوحة الشرف
+                    </button>
                   </div>
+
+                  {showLeaderboard ? (
+                    <Leaderboard />
+                  ) : (
+                    <AdminFinalsOverview onChanged={loadCommittees} />
+                  )}
                 </>
               )}
 
