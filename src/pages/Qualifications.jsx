@@ -5,7 +5,7 @@ import { ar } from '../utils/numbers.js';
 import TopBar from '../components/TopBar.jsx';
 import CommitteeManagement from '../components/CommitteeManagement.jsx';
 import CommitteeQueue from '../components/CommitteeQueue.jsx';
-import QualificationScoring from '../components/QualificationScoring.jsx';
+import FinalsEvaluationLockdown from '../components/FinalsEvaluationLockdown.jsx';
 import AdminFinalsOverview from '../components/AdminFinalsOverview.jsx';
 
 export default function Qualifications() {
@@ -77,11 +77,10 @@ export default function Qualifications() {
       ) : (
         <>
           {scoringItem ? (
-            <QualificationScoring
+            <FinalsEvaluationLockdown
               queueItem={scoringItem}
               user={user}
-              onClose={() => setScoringItem(null)}
-              onSaved={handleSaved}
+              onSubmitted={handleSaved}
             />
           ) : (
             <>

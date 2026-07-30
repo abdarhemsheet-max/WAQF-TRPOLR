@@ -4,11 +4,13 @@ import { ar } from '../utils/numbers.js';
 import { PlusIcon } from './Icons.jsx';
 import Modal from './Modal.jsx';
 import AddFinalStudent from './AddFinalStudent.jsx';
+import CommitteeDashboardHeader from './CommitteeDashboardHeader.jsx';
 
 export default function CommitteeQueue({ committee, user, onEvaluate, onChanged }) {
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [readyQ, setReadyQ] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -34,7 +36,8 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
     const evals = eRes.data || [];
     setQueue(qRes.data.map(q => {
       const student = q.finals_student_id ? finalsMap[q.finals_student_id] : regMap[q.student_id];
-      return { ...q, student, evaluations: evals.filter(e => e.queue_id === q.id) };
+      const qEvals = evals.filter(e => e.queue_id === q.id);
+      return { ...q, student, evaluations: qEvals };
     }));
     setLoading(false);
   }, [committee.id]);
@@ -42,62 +45,113 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
   useEffect(() => { load(); }, [load]);
 
   const isHead = committee.members?.some(m => m.user_id === user.id && m.is_head);
-  const pending = queue.filter(q => q.status === 'pending');
-  const evaluated = queue.filter(q => q.status === 'evaluated');
+
+  const handleReady = (q) => {
+    setReadyQ(q);
+  };
+
+  const handleStartEval = () => {
+    if (readyQ) {
+      setReadyQ(null);
+      onEvaluate(readyQ);
+    }
+  };
 
   if (loading) return <div className="empty-state">جارٍ تحميل الطابور...</div>;
 
-  const columns = ['الطالب', 'المستوى', 'المتن', 'الإنجاز', 'الحالة', 'إجراءات'];
+  const otherMember = committee.members?.find(m => m.user_id !== user.id);
 
   return (
-    <div className="glass-panel" style={{ marginTop: 16 }}>
-      <div className="glass-panel-head">
-        <div>
-          <h2>طابور التصفيات — {committee.name}</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: 4 }}>
-            {committee.room && <span>📍 {committee.room} · </span>}
-            {ar(pending.length)} في الانتظار · {ar(evaluated.length)} تم تقييمها
-          </p>
-        </div>
+    <div>
+      <CommitteeDashboardHeader committee={committee} user={user} />
+
+      <div className="glass-panel-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h2 style={{ fontSize: '1rem' }}>طابور التصفيات</h2>
         {isHead && (
           <button className="btn-action add" onClick={() => setShowAdd(true)}>
-            <PlusIcon /> إضافة طالب لطابور التصفيات
+            <PlusIcon /> إضافة طالب
           </button>
         )}
       </div>
 
-      <div className="table-container" style={{ marginTop: 8 }}>
+      <div className="table-container">
         <table>
           <thead>
-            <tr>{columns.map(c => <th key={c}>{c}</th>)}</tr>
+            <tr>
+              <th>الطالب</th>
+              <th>الحالة</th>
+              <th>تقييم العضو</th>
+              <th>متوسط النتيجة</th>
+              <th>التحكيم</th>
+              <th>اعتماد النتيجة</th>
+            </tr>
           </thead>
           <tbody>
-            {[...pending, ...evaluated].map(q => {
+            {queue.map(q => {
               const myEval = q.evaluations?.find(e => e.evaluator_id === user.id);
-              const canEvaluate = q.status === 'pending' && !myEval;
+              const otherEval = q.evaluations?.find(e => e.evaluator_id === otherMember?.user_id);
+              const avg = q.evaluations?.length > 0
+                ? Math.round(q.evaluations.reduce((s, e) => s + e.final_score, 0) / q.evaluations.length)
+                : null;
+              const canEvaluate = q.status !== 'finalized' && !myEval;
+              const canFinalize = q.status === 'evaluated' && q.evaluations?.length >= 2 && isHead && !q.finalized_score;
+
+              const statusLabel = q.status === 'pending' ? 'بانتظار التقييم'
+                : q.status === 'evaluated' ? 'تم التقييم'
+                : 'معتمد';
+              const statusColor = q.status === 'pending' ? '#fcd34d'
+                : q.status === 'evaluated' ? '#93c5fd'
+                : '#6ee7b7';
+
               return (
                 <tr key={q.id}>
                   <td style={{ fontWeight: 600 }}>{q.student?.name || '—'}</td>
-                  <td><span className="level-badge">{q.student?.level || '—'}</span></td>
-                  <td style={{ color: 'var(--text-muted)' }}>{q.student?.matn || '—'}</td>
-                  <td>{ar(q.student?.progress || 0)}%</td>
                   <td>
                     <span className="level-badge" style={{
-                      background: q.status === 'pending' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)',
-                      borderColor: q.status === 'pending' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)',
-                      color: q.status === 'pending' ? '#fcd34d' : '#6ee7b7'
-                    }}>
-                      {q.status === 'pending' ? 'بانتظار التقييم' : 'تم التقييم'}
-                    </span>
+                      background: `${statusColor}1A`, borderColor: `${statusColor}40`, color: statusColor
+                    }}>{statusLabel}</span>
+                  </td>
+                  <td style={{ fontSize: '0.85rem' }}>
+                    {otherEval ? (
+                      <span style={{ color: otherEval.final_score >= 80 ? '#6ee7b7' : otherEval.final_score >= 60 ? '#fcd34d' : '#fca5a5' }}>
+                        {ar(Math.round(otherEval.final_score))}%
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                    )}
+                  </td>
+                  <td>
+                    {avg !== null ? (
+                      <strong style={{ color: avg >= 80 ? '#6ee7b7' : avg >= 60 ? '#fcd34d' : '#fca5a5' }}>
+                        {ar(avg)}%
+                      </strong>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                    )}
                   </td>
                   <td>
                     {canEvaluate ? (
-                      <button className="btn-action add" onClick={() => onEvaluate(q)}>
-                        التقييم
+                      <button className="btn-action add" onClick={() => handleReady(q)}>
+                        التحكيم
                       </button>
                     ) : myEval ? (
                       <span className="level-badge" style={{ background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.25)', color: '#6ee7b7' }}>
-                        تم تقييمك ({ar(Math.round(myEval.final_score))}%)
+                        {ar(Math.round(myEval.final_score))}%
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
+                    )}
+                  </td>
+                  <td>
+                    {canFinalize ? (
+                      <button className="btn-action" style={{
+                        background: 'rgba(16,185,129,0.15)', color: '#34d399', borderColor: 'rgba(16,185,129,0.3)'
+                      }} onClick={() => handleFinalize(q, avg)}>
+                        اعتماد
+                      </button>
+                    ) : q.finalized_score ? (
+                      <span className="level-badge" style={{ background: 'rgba(16,185,129,0.12)', borderColor: 'rgba(16,185,129,0.3)', color: '#6ee7b7' }}>
+                        ✓ {ar(Math.round(q.finalized_score))}%
                       </span>
                     ) : (
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
@@ -107,7 +161,7 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
               );
             })}
             {queue.length === 0 && (
-              <tr><td colSpan={6}><div className="empty-state">لا يوجد طلاب في طابور التصفيات</div></td></tr>
+              <tr><td colSpan={6}><div className="empty-state">لا يوجد طلاب في الطابور</div></td></tr>
             )}
           </tbody>
         </table>
@@ -121,6 +175,34 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
           onSaved={() => { load(); onChanged?.(); }}
         />
       )}
+
+      {readyQ && (
+        <Modal title="" onClose={() => setReadyQ(null)}>
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🎯</div>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: 8 }}>هل أنت مستعد للتحكيم؟</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 20 }}>
+              {readyQ.student?.name} — {readyQ.student?.level} · {readyQ.student?.matn}
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button className="btn-primary" onClick={handleStartEval} style={{ width: 'auto', padding: '10px 36px' }}>
+                نعم
+              </button>
+              <button className="btn-action" onClick={() => setReadyQ(null)} style={{ padding: '10px 36px' }}>
+                لا
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
+}
+
+async function handleFinalize(q, avg) {
+  if (!confirm(`اعتماد نتيجة "${q.student?.name}" بمتوسط ${avg}%؟`)) return;
+  await supabase.from('committee_queue').update({
+    status: 'finalized', finalized_score: avg
+  }).eq('id', q.id);
+  window.location.reload();
 }
