@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useConnection } from '../hooks/useConnection.js';
 import { ar } from '../utils/numbers.js';
-import { ChartIcon, LogoutIcon, OfflineIcon, StarIcon } from './Icons.jsx';
+import { LogoutIcon, OfflineIcon } from './Icons.jsx';
 
 export default function TopBar() {
   const { user, logout, isAdmin } = useAuth();
@@ -48,16 +48,6 @@ export default function TopBar() {
           </button>
         )}
 
-        {isAdmin && (
-          <button className="btn-action" onClick={() => navigate('/dashboard')}>
-            <ChartIcon style={{ width: 16, height: 16 }} />
-            الإحصائيات
-          </button>
-        )}
-        <button className="btn-action" onClick={() => navigate('/qualifications')}>
-          <StarIcon style={{ width: 16, height: 16 }} />
-          التصفية
-        </button>
         <button className="btn-action" onClick={() => navigate('/gateway')}>
           البوابة
         </button>

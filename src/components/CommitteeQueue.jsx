@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { ar } from '../utils/numbers.js';
+import { DEDUCTION_KEYS, QUAL_DEDUCTIONS } from '../utils/qualificationConfig.js';
 import { PlusIcon } from './Icons.jsx';
 import Modal from './Modal.jsx';
 import AddFinalStudent from './AddFinalStudent.jsx';
@@ -11,6 +12,7 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [readyQ, setReadyQ] = useState(null);
+  const [detailsQ, setDetailsQ] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -34,10 +36,14 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
     (sRes.data || []).forEach(s => { regMap[s.id] = s; });
 
     const evals = eRes.data || [];
+
+    const uRes = await supabase.from('users').select('id, name');
+    const usersMap = {}; (uRes.data || []).forEach(u => { usersMap[u.id] = u.name; });
+
     setQueue(qRes.data.map(q => {
       const student = q.finals_student_id ? finalsMap[q.finals_student_id] : regMap[q.student_id];
-      const qEvals = evals.filter(e => e.queue_id === q.id);
-      return { ...q, student, evaluations: qEvals };
+      const evaluations = evals.filter(e => e.queue_id === q.id).map(e => ({ ...e, evaluator_name: usersMap[e.evaluator_id] || '' }));
+      return { ...q, student, evaluations };
     }));
     setLoading(false);
   }, [committee.id]);
@@ -45,21 +51,12 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
   useEffect(() => { load(); }, [load]);
 
   const isHead = committee.members?.some(m => m.user_id === user.id && m.is_head);
+  const otherMember = committee.members?.find(m => m.user_id !== user.id);
 
-  const handleReady = (q) => {
-    setReadyQ(q);
-  };
-
-  const handleStartEval = () => {
-    if (readyQ) {
-      setReadyQ(null);
-      onEvaluate(readyQ);
-    }
-  };
+  const handleReady = (q) => setReadyQ(q);
+  const handleStartEval = () => { if (readyQ) { setReadyQ(null); onEvaluate(readyQ); } };
 
   if (loading) return <div className="empty-state">جارٍ تحميل الطابور...</div>;
-
-  const otherMember = committee.members?.find(m => m.user_id !== user.id);
 
   return (
     <div>
@@ -83,46 +80,75 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
               <th>تقييم العضو</th>
               <th>متوسط النتيجة</th>
               <th>التحكيم</th>
-              <th>اعتماد النتيجة</th>
             </tr>
           </thead>
           <tbody>
             {queue.map(q => {
               const myEval = q.evaluations?.find(e => e.evaluator_id === user.id);
-              const otherEval = q.evaluations?.find(e => e.evaluator_id === otherMember?.user_id);
-              const avg = q.evaluations?.length > 0
-                ? Math.round(q.evaluations.reduce((s, e) => s + e.final_score, 0) / q.evaluations.length)
+              const otherEval = q.evaluations?.find(e => e.evaluator_id !== user.id);
+              const evalCount = q.evaluations?.length || 0;
+              const avg = evalCount > 0
+                ? Math.round(q.evaluations.reduce((s, e) => s + e.final_score, 0) / evalCount)
                 : null;
               const canEvaluate = q.status !== 'finalized' && !myEval;
-              const canFinalize = q.status === 'evaluated' && q.evaluations?.length >= 2 && isHead && !q.finalized_score;
 
-              const statusLabel = q.status === 'pending' ? 'بانتظار التقييم'
-                : q.status === 'evaluated' ? 'تم التقييم'
-                : 'معتمد';
-              const statusColor = q.status === 'pending' ? '#fcd34d'
-                : q.status === 'evaluated' ? '#93c5fd'
-                : '#6ee7b7';
+              let statusText = 'بانتظار التقييم';
+              let statusColor = '#fcd34d';
+              if (q.status === 'finalized') {
+                statusText = 'معتمد';
+                statusColor = '#6ee7b7';
+              } else if (evalCount === 1) {
+                statusText = 'تم تقييم محكم واحد';
+                statusColor = '#93c5fd';
+              } else if (evalCount >= 2) {
+                statusText = 'تم التقييم';
+                statusColor = '#6ee7b7';
+              }
 
               return (
                 <tr key={q.id}>
-                  <td style={{ fontWeight: 600 }}>{q.student?.name || '—'}</td>
+                  <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => setDetailsQ(q)}>
+                    {q.student?.name || '—'}
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginRight: 8, display: 'inline-block' }}>
+                      ℹ️
+                    </span>
+                  </td>
                   <td>
                     <span className="level-badge" style={{
                       background: `${statusColor}1A`, borderColor: `${statusColor}40`, color: statusColor
-                    }}>{statusLabel}</span>
+                    }}>{statusText}</span>
                   </td>
-                  <td style={{ fontSize: '0.85rem' }}>
-                    {otherEval ? (
-                      <span style={{ color: otherEval.final_score >= 80 ? '#6ee7b7' : otherEval.final_score >= 60 ? '#fcd34d' : '#fca5a5' }}>
-                        {ar(Math.round(otherEval.final_score))}%
-                      </span>
+                  <td>
+                    {q.evaluations?.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {q.evaluations.map(e => {
+                          const isMe = e.evaluator_id === user.id;
+                          return (
+                            <div key={e.id} style={{
+                              display: 'flex', alignItems: 'center', gap: 6,
+                              padding: '4px 8px', borderRadius: 6,
+                              background: isMe ? 'rgba(59,130,246,0.08)' : 'transparent'
+                            }}>
+                              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                                {e.evaluator_name}
+                              </span>
+                              <strong style={{
+                                fontSize: '0.85rem',
+                                color: e.final_score >= 80 ? '#6ee7b7' : e.final_score >= 60 ? '#fcd34d' : '#fca5a5'
+                              }}>
+                                {ar(Math.round(e.final_score))}%
+                              </strong>
+                            </div>
+                          );
+                        })}
+                      </div>
                     ) : (
                       <span style={{ color: 'var(--text-muted)' }}>—</span>
                     )}
                   </td>
                   <td>
                     {avg !== null ? (
-                      <strong style={{ color: avg >= 80 ? '#6ee7b7' : avg >= 60 ? '#fcd34d' : '#fca5a5' }}>
+                      <strong style={{ fontSize: '1rem', color: avg >= 80 ? '#6ee7b7' : avg >= 60 ? '#fcd34d' : '#fca5a5' }}>
                         {ar(avg)}%
                       </strong>
                     ) : (
@@ -142,26 +168,11 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
                     )}
                   </td>
-                  <td>
-                    {canFinalize ? (
-                      <button className="btn-action" style={{
-                        background: 'rgba(16,185,129,0.15)', color: '#34d399', borderColor: 'rgba(16,185,129,0.3)'
-                      }} onClick={() => handleFinalize(q, avg)}>
-                        اعتماد
-                      </button>
-                    ) : q.finalized_score ? (
-                      <span className="level-badge" style={{ background: 'rgba(16,185,129,0.12)', borderColor: 'rgba(16,185,129,0.3)', color: '#6ee7b7' }}>
-                        ✓ {ar(Math.round(q.finalized_score))}%
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
-                    )}
-                  </td>
                 </tr>
               );
             })}
             {queue.length === 0 && (
-              <tr><td colSpan={6}><div className="empty-state">لا يوجد طلاب في الطابور</div></td></tr>
+              <tr><td colSpan={5}><div className="empty-state">لا يوجد طلاب في الطابور</div></td></tr>
             )}
           </tbody>
         </table>
@@ -169,8 +180,7 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
 
       {showAdd && (
         <AddFinalStudent
-          committeeId={committee.id}
-          userId={user.id}
+          committeeId={committee.id} userId={user.id}
           onClose={() => setShowAdd(false)}
           onSaved={() => { load(); onChanged?.(); }}
         />
@@ -195,14 +205,89 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
           </div>
         </Modal>
       )}
+
+      {detailsQ && (
+        <DetailsBreakdown queueItem={detailsQ} onClose={() => setDetailsQ(null)} />
+      )}
     </div>
   );
 }
 
-async function handleFinalize(q, avg) {
-  if (!confirm(`اعتماد نتيجة "${q.student?.name}" بمتوسط ${avg}%؟`)) return;
-  await supabase.from('committee_queue').update({
-    status: 'finalized', finalized_score: avg
-  }).eq('id', q.id);
-  window.location.reload();
+function DetailsBreakdown({ queueItem, onClose }) {
+  const evaluations = queueItem.evaluations || [];
+  const questions = ['الحفظ', 'التجويد والأداء', 'الصوت'];
+
+  return (
+    <Modal title={`تفاصيل التحكيم: ${queueItem.student?.name || ''}`} onClose={onClose}>
+      {evaluations.length === 0 ? (
+        <div className="empty-state">لا توجد تقييمات بعد</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {evaluations.map((e, idx) => {
+            const deductions = e.deductions || {};
+            const voiceScore = e.voice_score || 0;
+
+            const q1 = ['التلعثم', 'التردد', 'النقص أو الزيادة'];
+            const q2 = ['اللحن الخفي', 'اللحن', 'التنبيه'];
+
+            const q1Ded = Math.round(q1.reduce((s, c) => s + (deductions[c] || 0) * (QUAL_DEDUCTIONS[c] || 0), 0) * 100) / 100;
+            const q2Ded = Math.round(q2.reduce((s, c) => s + (deductions[c] || 0) * (QUAL_DEDUCTIONS[c] || 0), 0) * 100) / 100;
+            const q1Score = Math.max(0, Math.round((10 - q1Ded) * 100) / 100);
+            const q2Score = Math.max(0, Math.round((10 - q2Ded) * 100) / 100);
+
+            const boxColor = idx === 0 ? 'rgba(59,130,246,0.08)' : 'rgba(16,185,129,0.08)';
+            const boxBorder = idx === 0 ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.25)';
+
+            return (
+              <div key={e.id || idx} style={{
+                background: boxColor, border: `1px solid ${boxBorder}`,
+                borderRadius: 16, padding: '16px 20px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <strong style={{ fontSize: '1rem' }}>
+                    تحكيم رقم {idx + 1}: {e.evaluator_name}
+                  </strong>
+                  <span className="level-badge" style={{
+                    background: e.final_score >= 80 ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+                    borderColor: e.final_score >= 80 ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)',
+                    color: e.final_score >= 80 ? '#6ee7b7' : '#fcd34d',
+                    fontWeight: 700
+                  }}>
+                    {ar(Math.round(e.final_score))}%
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>السؤال الأول: الحفظ</span>
+                    <span style={{ fontWeight: 600 }}>{ar(q1Score)}/عشرة {q1Ded > 0 && <span style={{ color: '#fca5a5', fontSize: '0.78rem' }}>(-{q1Ded.toFixed(1)})</span>}</span>
+                  </div>
+                  {q1.filter(c => (deductions[c] || 0) > 0).map(c => (
+                    <div key={c} style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginRight: 16 }}>
+                      {c}: {ar(deductions[c])} × -{QUAL_DEDUCTIONS[c]}
+                    </div>
+                  ))}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>السؤال الثاني: التجويد والأداء</span>
+                    <span style={{ fontWeight: 600 }}>{ar(q2Score)}/عشرة {q2Ded > 0 && <span style={{ color: '#fca5a5', fontSize: '0.78rem' }}>(-{q2Ded.toFixed(1)})</span>}</span>
+                  </div>
+                  {q2.filter(c => (deductions[c] || 0) > 0).map(c => (
+                    <div key={c} style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginRight: 16 }}>
+                      {c}: {ar(deductions[c])} × -{QUAL_DEDUCTIONS[c]}
+                    </div>
+                  ))}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>السؤال الثالث: الصوت</span>
+                    <span style={{ fontWeight: 600 }}>{ar(voiceScore)}/عشرة</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Modal>
+  );
 }

@@ -227,7 +227,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
           ) : (
             <button className="btn-primary" onClick={handleSubmit} disabled={saving || !allFilled}
               style={{ marginTop: 20, width: 'auto', padding: '12px 48px', background: '#166534' }}>
-              {saving ? 'جارٍ الحفظ...' : 'اعتماد'}
+              {saving ? 'جارٍ الحفظ...' : 'تسليم التقييم'}
             </button>
           )}
         </div>
