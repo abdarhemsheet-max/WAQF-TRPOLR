@@ -326,8 +326,8 @@ function AdminEvalDetail({ queueItem, onClose }) {
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{labelForIndex(qi)}</span>
-                          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: qScore >= 7 ? '#6ee7b7' : '#fcd34d' }}>
-                            {ar(Math.round(qScore))}/عشرة
+                            <span style={{ fontWeight: 700, fontSize: '0.9rem', color: qScore >= 80 ? '#6ee7b7' : qScore >= 60 ? '#fcd34d' : '#fca5a5' }}>
+                            {ar(Math.round(qScore))}%
                           </span>
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>

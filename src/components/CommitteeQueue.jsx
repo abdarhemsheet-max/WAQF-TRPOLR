@@ -273,7 +273,7 @@ function DetailsBreakdown({ queueItem, onClose }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{labelForIndex(qi)}</span>
                           <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                            {ar(Math.round(qScore))}/عشرة
+                            {ar(Math.round(qScore))}%
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

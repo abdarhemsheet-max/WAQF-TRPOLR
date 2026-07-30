@@ -4,7 +4,6 @@ import { ar } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS, totalDeductionAmount, VOICE_MAX } from '../utils/qualificationConfig.js';
 import Modal from './Modal.jsx';
 
-const MAX_PER_QUESTION = 20;
 const STORAGE_KEY = 'waqf_eval_state';
 const META_KEY = 'waqf_eval_meta';
 
@@ -22,13 +21,13 @@ function initQuestions() {
 
 function questionScore(voiceScore, deductions) {
   const ded = totalDeductionAmount(deductions);
-  return Math.max(0, 10 - ded + Number(voiceScore));
+  return Math.max(0, Math.min(100, 90 - ded + Number(voiceScore)));
 }
 
 function totalPercentage(questions) {
   if (questions.length === 0) return 0;
   const total = questions.reduce((s, q) => s + questionScore(q.voiceScore, q.deductions), 0);
-  return Math.round((total / (questions.length * MAX_PER_QUESTION)) * 100);
+  return Math.round(total / questions.length);
 }
 
 function labelForIndex(i) {
@@ -186,13 +185,22 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
 
   return (
     <div className="eval-fullscreen" style={{ zIndex: 9999 }}>
-      <div className="eval-header">
-        <div className="eval-header-title">
-          <span className="eval-header-name">تحكيم: {queueItem.student?.name || 'الطالب'}</span>
-          <span className="eval-header-level">{queueItem.student?.level} · {queueItem.student?.matn}</span>
+      <div style={{
+        background: 'rgba(0,0,0,0.4)', borderBottom: '1px solid rgba(255,255,255,0.08)',
+        padding: '10px 20px', display: 'flex', justifyContent: 'space-between',
+        alignItems: 'center', flexShrink: 0
+      }}>
+        <div>
+          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{queueItem.student?.name || 'الطالب'}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginRight: 12 }}>
+            {queueItem.student?.level} · {queueItem.student?.matn}
+          </span>
         </div>
-        <div className="eval-score-badge" style={{ background: `${scoreColor}1A`, borderColor: `${scoreColor}40`, color: scoreColor }}>
-          {ar(totalScore)}%
+        <div className="eval-score-badge" style={{
+          background: `${scoreColor}1A`, borderColor: `${scoreColor}40`, color: scoreColor,
+          padding: '8px 24px', fontSize: '1.1rem'
+        }}>
+          النتيجة النهائية: {ar(totalScore)}%
         </div>
       </div>
 
@@ -297,7 +305,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
           }}>
             <span style={{ color: 'var(--text-muted)' }}>مجموع السؤال</span>
             <strong style={{ fontSize: '1.2rem', color: scoreColor }}>
-              {ar(questionScore(section.voiceScore, section.deductions))}/{VOICE_MAX}
+              {ar(Math.round(questionScore(section.voiceScore, section.deductions)))}%
             </strong>
           </div>
 
@@ -323,13 +331,10 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
       <div className="eval-footer">
         <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
           {questions.map((q, i) => {
-            const s = questionScore(q.voiceScore, q.deductions);
-            return `${labelForIndex(i)}: ${ar(s)}/${VOICE_MAX}${i < questions.length - 1 ? ' | ' : ''}`;
+            const s = Math.round(questionScore(q.voiceScore, q.deductions));
+            return `${labelForIndex(i)}: ${ar(s)}%${i < questions.length - 1 ? ' | ' : ''}`;
           })}
         </span>
-        <div className="eval-score-badge" style={{ background: `${scoreColor}1A`, borderColor: `${scoreColor}40`, color: scoreColor, padding: '6px 16px', fontSize: '0.9rem' }}>
-          النتيجة النهائية: {ar(totalScore)}%
-        </div>
       </div>
 
       {showConfirm && (
