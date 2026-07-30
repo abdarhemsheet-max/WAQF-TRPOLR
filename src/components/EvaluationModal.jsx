@@ -139,7 +139,7 @@ export default function EvaluationModal({ student, user, onClose, onSaved }) {
             <div className="eval-voice-wrap">
               <input type="number" className="eval-voice-input" min="0" max="10" step="0.5"
                 value={voice} onChange={e => setVoice(e.target.value)} />
-              <span className="eval-voice-unit">/10</span>
+              <span className="eval-voice-unit">/عشرة</span>
             </div>
           </div>
         </div>

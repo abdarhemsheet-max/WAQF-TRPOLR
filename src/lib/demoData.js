@@ -56,7 +56,26 @@ function buildSeed() {
         created_at: now
       }
     ],
-    message_reports: []
+    message_reports: [],
+    committees: [
+      { id: 'demo-committee-1', name: 'لجنة التحكيم الأولى', room: 'الغرفة 121', created_at: now },
+      { id: 'demo-committee-2', name: 'لجنة التحكيم الثانية', room: 'الغرفة 122', created_at: now }
+    ],
+    committee_members: [
+      { id: 'demo-cm-1', committee_id: 'demo-committee-1', user_id: T1, is_head: true, created_at: now },
+      { id: 'demo-cm-2', committee_id: 'demo-committee-1', user_id: T2, is_head: false, created_at: now }
+    ],
+    committee_queue: [
+      {
+        id: 'demo-cq-1', committee_id: 'demo-committee-1', student_id: 'demo-student-0001',
+        added_by: T1, status: 'pending', created_at: now, evaluated_at: null
+      },
+      {
+        id: 'demo-cq-2', committee_id: 'demo-committee-1', student_id: 'demo-student-0004',
+        added_by: T1, status: 'pending', created_at: now, evaluated_at: null
+      }
+    ],
+    qualification_evaluations: []
   };
 }
 
@@ -65,9 +84,10 @@ function migrate(db) {
   const seed = buildSeed();
   let changed = false;
 
-  for (const table of ['message_templates', 'message_reports']) {
+  const newTables = ['message_templates', 'message_reports', 'committees', 'committee_members', 'committee_queue', 'qualification_evaluations'];
+  for (const table of newTables) {
     if (!Array.isArray(db[table])) {
-      db[table] = seed[table];
+      db[table] = seed[table] || [];
       changed = true;
     }
   }

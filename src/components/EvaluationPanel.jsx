@@ -186,7 +186,7 @@ export default function EvaluationPanel({ student, user, onClose, onSaved }) {
             <input type="number" min="0" max="10" step="0.5" value={voice} onChange={handleVoice}
               className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-center text-sm sm:text-base outline-none focus:border-blue-500 ltr"
               style={{ color: 'var(--text-main)', width: 'clamp(56px,8vw,72px)' }} />
-            <span className="text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>/10</span>
+            <span className="text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>/عشرة</span>
           </div>
         </div>
         <div className="flex items-center gap-2">

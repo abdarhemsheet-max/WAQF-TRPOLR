@@ -64,8 +64,8 @@ export default function Gateway() {
           <div className="icon-circle">
             <StarIcon />
           </div>
-          <h2>تصفيات دورة حفاظ الوحيين</h2>
-          <p>إدارة التصفيات وتقييم الطلاب</p>
+          <h2>تصفية دورة حفاظ الوحيين</h2>
+          <p>لجان التحكيم وتقييم الطلاب</p>
         </div>
       </div>
     </div>

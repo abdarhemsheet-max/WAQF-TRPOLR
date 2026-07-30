@@ -125,7 +125,7 @@ export default function AddStudentForm({ teacherId, onClose, onSaved }) {
         </div>
 
         <div className="field">
-          <label>تقييم الصوت (من 10)</label>
+          <label>تقييم الصوت (من عشرة)</label>
           <input
             type="number"
             min="0"

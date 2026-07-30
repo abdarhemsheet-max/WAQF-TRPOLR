@@ -68,7 +68,7 @@ export default function StudentsTable({
                         if (e.key === 'Enter') e.currentTarget.blur();
                       }}
                     />
-                    <span className="progress-sign">/10</span>
+                    <span className="progress-sign">/عشرة</span>
                   </div>
                 </td>
                 {showTeacherColumn && (
