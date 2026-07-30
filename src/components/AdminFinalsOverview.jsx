@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabaseClient.js';
 import { useToast } from '../context/ToastContext.jsx';
@@ -102,6 +102,7 @@ export default function AdminFinalsOverview({ onChanged }) {
   const [committees, setCommittees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(null);
+  const [finalizingAll, setFinalizingAll] = useState(false);
   const [detailsQ, setDetailsQ] = useState(null);
   const toast = useToast();
 
@@ -175,12 +176,63 @@ export default function AdminFinalsOverview({ onChanged }) {
     onChanged?.();
   };
 
+  const readyToFinalize = useMemo(() => {
+    const items = [];
+    committees.forEach(c => {
+      const isSingle = c.is_single_judge;
+      const evReq = isSingle ? 1 : 2;
+      (c.queue || []).forEach(q => {
+        const evalCount = q.evaluations?.length || 0;
+        if (evalCount >= evReq && q.status !== 'finalized') {
+          items.push(q);
+        }
+      });
+    });
+    return items;
+  }, [committees]);
+
+  const handleFinalizeAll = async () => {
+    const ids = readyToFinalize.map(q => q.id);
+    if (!ids.length) { toast.error('لا توجد نتائج جاهزة للاعتماد'); return; }
+    if (!window.confirm(`اعتماد ${ar(ids.length)} نتيجة?`)) return;
+
+    setFinalizingAll(true);
+    const now = new Date().toISOString();
+
+    setCommittees(prev => prev.map(c => ({
+      ...c, queue: (c.queue || []).map(qq =>
+        ids.includes(qq.id) ? { ...qq, status: 'finalized', finalized_at: now } : qq
+      )
+    })));
+
+    const { error } = await supabase.from('committee_queue')
+      .update({ status: 'finalized', finalized_at: now })
+      .in('id', ids);
+
+    setFinalizingAll(false);
+    if (error) {
+      toast.error('فشل الاعتماد الجماعي: ' + error.message);
+      load();
+      return;
+    }
+    toast.success(`تم اعتماد ${ar(ids.length)} نتيجة`);
+    onChanged?.();
+  };
+
   if (loading) return <div className="empty-state">جارٍ تحميل نظرة عامة...</div>;
 
   return (
     <div className="glass-panel">
       <div className="glass-panel-head">
         <h2>نظرة عامة على لجان التحكيم</h2>
+        {readyToFinalize.length > 0 && (
+          <button className="btn-action add"
+            onClick={handleFinalizeAll}
+            disabled={finalizingAll}
+            style={{ fontSize: '0.82rem', padding: '8px 16px' }}>
+            {finalizingAll ? '...' : `✅ اعتماد الكل (${ar(readyToFinalize.length)})`}
+          </button>
+        )}
       </div>
 
       {committees.length === 0 ? (
