@@ -6,6 +6,7 @@ import Modal from './Modal.jsx';
 
 const MAX_PER_QUESTION = 20;
 const STORAGE_KEY = 'waqf_eval_state';
+const META_KEY = 'waqf_eval_meta';
 
 function emptyDeductions() {
   return Object.fromEntries(DEDUCTION_KEYS.map(k => [k, 0]));
@@ -59,10 +60,22 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
   useEffect(() => {
     if (hydrated.current) {
       localStorage.setItem(`${STORAGE_KEY}_${queueItem.id}`, JSON.stringify(questions));
+      localStorage.setItem(`${META_KEY}_${queueItem.id}`, JSON.stringify({
+        studentName: queueItem.student?.name || '',
+        level: queueItem.student?.level || '',
+        matn: queueItem.student?.matn || '',
+        committeeMemberCount: queueItem.committee_member_count || 2
+      }));
     }
-  }, [questions, queueItem.id]);
+  }, [questions, queueItem.id, queueItem.student]);
 
   useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     document.body.style.overflow = 'hidden';
     const handlePopState = (e) => { e.preventDefault(); window.history.pushState(null, '', window.location.href); };
     window.history.pushState(null, '', window.location.href);
@@ -72,6 +85,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.body.style.overflow = '';
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('keydown', handleKeyDown);
@@ -91,8 +105,10 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
   };
 
   const updateVoice = (idx, val) => {
+    const n = Number(val);
+    if (val !== '' && (n < 5 || n > 9)) return;
     setQuestions(prev => {
-      const next = prev.map((q, i) => i === idx ? { ...q, voiceScore: Math.min(10, Math.max(0, Number(val) || 0)) } : q);
+      const next = prev.map((q, i) => i === idx ? { ...q, voiceScore: val === '' ? '' : n } : q);
       persist(next);
       return next;
     });
@@ -119,6 +135,12 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
 
   const totalScore = useMemo(() => totalPercentage(questions), [questions]);
   const section = questions[currentSection];
+
+  const allVoicesValid = useMemo(() => questions.every(q => {
+    if (q.voiceScore === '' || q.voiceScore === 0) return false;
+    const n = Number(q.voiceScore);
+    return n >= 5 && n <= 9;
+  }), [questions]);
 
   const doSubmit = async () => {
     setShowConfirm(false);
@@ -147,6 +169,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
     if (error) { alert('فشل الحفظ: ' + error.message); setSaving(false); return; }
 
     localStorage.removeItem(`${STORAGE_KEY}_${queueItem.id}`);
+    localStorage.removeItem(`${META_KEY}_${queueItem.id}`);
 
     const allEvals = [...(queueItem.evaluations || []), payload];
     const committeeSize = (queueItem.committee_member_count || 2);
@@ -168,15 +191,8 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
           <span className="eval-header-name">تحكيم: {queueItem.student?.name || 'الطالب'}</span>
           <span className="eval-header-level">{queueItem.student?.level} · {queueItem.student?.matn}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={handleUndo} disabled={historyRef.current.length === 0}
-            className="btn-action"
-            style={{ padding: '6px 16px', fontSize: '0.82rem', opacity: historyRef.current.length === 0 ? 0.3 : 1 }}>
-            تراجع
-          </button>
-          <div className="eval-score-badge" style={{ background: `${scoreColor}1A`, borderColor: `${scoreColor}40`, color: scoreColor }}>
-            {ar(totalScore)}%
-          </div>
+        <div className="eval-score-badge" style={{ background: `${scoreColor}1A`, borderColor: `${scoreColor}40`, color: scoreColor }}>
+          {ar(totalScore)}%
         </div>
       </div>
 
@@ -211,15 +227,24 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
 
       <div className="eval-table-area">
         <div className="glass-panel" style={{ maxWidth: 700, margin: '0 auto' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: 16 }}>{labelForIndex(currentSection)}</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>{labelForIndex(currentSection)}</h3>
+            <button onClick={handleUndo} disabled={historyRef.current.length === 0}
+              className="btn-action"
+              style={{ padding: '6px 16px', fontSize: '0.82rem', opacity: historyRef.current.length === 0 ? 0.3 : 1 }}>
+              تراجع
+            </button>
+          </div>
 
           <div style={{ marginBottom: 20, padding: '16px 20px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
             <p style={{ color: 'var(--text-muted)', marginBottom: 10, fontSize: '0.85rem' }}>
-              الصوت والأداء — من {VOICE_MAX}
+              الصوت والأداء — من {VOICE_MAX} (يُسمح {VOICE_MAX === 'عشرة' ? '5 إلى 9' : '5-9'})
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <input type="number" min="0" max="10" step="0.5" value={section.voiceScore}
+              <input type="number" min="5" max="9" step="0.5"
+                value={section.voiceScore === 0 ? '' : section.voiceScore}
                 onChange={e => updateVoice(currentSection, e.target.value)}
+                placeholder="5-9"
                 style={{
                   width: 80, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)',
                   color: 'var(--text-main)', padding: '10px 12px', borderRadius: 12, textAlign: 'center',
@@ -285,7 +310,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
                 </button>
               ) : (
                 <button className="btn-primary" onClick={() => setShowConfirm(true)}
-                  disabled={saving || totalScore === 0}
+                  disabled={saving || !allVoicesValid}
                   style={{ width: 'auto', padding: '12px 48px', background: '#166534' }}>
                   {saving ? 'جارٍ الحفظ...' : 'تسليم التقييم'}
                 </button>
