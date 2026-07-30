@@ -1,45 +1,33 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { ar } from '../utils/numbers.js';
-import { computeFinalScore, totalDeductionAmount, VOICE_MAX } from '../utils/qualificationConfig.js';
-const AR = VOICE_MAX;
+import { DEDUCTION_KEYS, QUAL_DEDUCTIONS, totalDeductionAmount, VOICE_MAX } from '../utils/qualificationConfig.js';
 
-const QUESTIONS = [
-  {
-    key: 'memorization', label: 'السؤال الأول: الحفظ',
-    desc: 'تقييم حفظ الطالب للمتن',
-    criteria: ['التلعثم', 'التردد', 'النقص أو الزيادة'],
-    base: 10
-  },
-  {
-    key: 'tajweed', label: 'السؤال الثاني: التجويد والأداء',
-    desc: 'تقييم أحكام التجويد والأداء',
-    criteria: ['اللحن الخفي', 'اللحن', 'التنبيه'],
-    base: 10
-  },
-  {
-    key: 'voice', label: 'السؤال الثالث: الصوت',
-    desc: 'تقييم جودة الصوت والأداء',
-    criteria: [], base: 10
-  }
-];
-
-const DEDUCTION_VALUES = {
-  التلعثم: 1.5, التردد: 3, 'النقص أو الزيادة': 3,
-  'اللحن الخفي': 1.5, اللحن: 6, التنبيه: 6
-};
+const DEDUCTION_VALUES = QUAL_DEDUCTIONS;
+const MAX_PER_QUESTION = 20;
 
 function emptyDeductions() {
-  const d = {};
-  for (const q of QUESTIONS) {
-    for (const c of q.criteria) d[c] = 0;
-  }
-  return d;
+  return Object.fromEntries(DEDUCTION_KEYS.map(k => [k, 0]));
+}
+
+function questionScore(voiceScore, deductions) {
+  const ded = totalDeductionAmount(deductions);
+  return Math.max(0, 10 - ded + Number(voiceScore));
+}
+
+function totalPercentage(questions) {
+  if (questions.length === 0) return 0;
+  const total = questions.reduce((s, q) => s + questionScore(q.voiceScore, q.deductions), 0);
+  return Math.round((total / (questions.length * MAX_PER_QUESTION)) * 100);
+}
+
+function labelForIndex(i) {
+  const names = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'];
+  return `السؤال ${names[i] || i + 1}`;
 }
 
 export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted }) {
-  const [deductions, setDeductions] = useState(emptyDeductions);
-  const [voiceScore, setVoiceScore] = useState(0);
+  const [questions, setQuestions] = useState([{ index: 0, voiceScore: 0, deductions: emptyDeductions() }]);
   const [currentSection, setCurrentSection] = useState(0);
   const [saving, setSaving] = useState(false);
 
@@ -59,49 +47,45 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
     };
   }, []);
 
-  const inc = (key) => setDeductions(prev => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
-  const dec = (key) => setDeductions(prev => ({ ...prev, [key]: Math.max(0, (prev[key] || 0) - 1) }));
+  const addQuestion = () => {
+    setQuestions(prev => [...prev, { index: prev.length, voiceScore: 0, deductions: emptyDeductions() }]);
+  };
 
-  const q1Deductions = useMemo(() => {
-    const d = {};
-    for (const c of QUESTIONS[0].criteria) d[c] = deductions[c] || 0;
-    return d;
-  }, [deductions]);
+  const updateVoice = (idx, val) => {
+    setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, voiceScore: Math.min(10, Math.max(0, Number(val) || 0)) } : q));
+  };
 
-  const q2Deductions = useMemo(() => {
-    const d = {};
-    for (const c of QUESTIONS[1].criteria) d[c] = deductions[c] || 0;
-    return d;
-  }, [deductions]);
+  const inc = (idx, key) => {
+    setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, deductions: { ...q.deductions, [key]: (q.deductions[key] || 0) + 1 } } : q));
+  };
 
-  const q1Score = useMemo(() => {
-    const totalD = totalDeductionAmount(q1Deductions);
-    return Math.max(0, QUESTIONS[0].base - totalD);
-  }, [q1Deductions]);
+  const dec = (idx, key) => {
+    setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, deductions: { ...q.deductions, [key]: Math.max(0, (q.deductions[key] || 0) - 1) } } : q));
+  };
 
-  const q2Score = useMemo(() => {
-    const totalD = totalDeductionAmount(q2Deductions);
-    return Math.max(0, QUESTIONS[1].base - totalD);
-  }, [q2Deductions]);
-
-  const totalScore = useMemo(() => {
-    const sum = q1Score + q2Score + Number(voiceScore);
-    return Math.round((sum / 30) * 100);
-  }, [q1Score, q2Score, voiceScore]);
-
-  const allFilled = currentSection < 2 || (currentSection === 2 && voiceScore > 0);
+  const totalScore = useMemo(() => totalPercentage(questions), [questions]);
+  const section = questions[currentSection];
 
   const handleSubmit = async () => {
     setSaving(true);
-    const finalScore = computeFinalScore(voiceScore, deductions);
+
+    const questionsPayload = questions.map(q => ({
+      question_index: q.index,
+      voice_score: Number(q.voiceScore),
+      deductions: q.deductions
+    }));
+
+    const totalVoice = questions.reduce((s, q) => s + Number(q.voiceScore), 0);
+
+    const finalScore = totalPercentage(questions);
 
     const payload = {
       queue_id: queueItem.id,
       student_id: queueItem.student_id || null,
       finals_student_id: queueItem.finals_student_id || null,
       evaluator_id: user.id,
-      voice_score: Number(voiceScore),
-      deductions,
+      voice_score: totalVoice,
+      deductions: questionsPayload,
       final_score: finalScore
     };
 
@@ -119,7 +103,6 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
     onSubmitted(payload);
   };
 
-  const section = QUESTIONS[currentSection];
   const scoreColor = totalScore >= 80 ? '#6ee7b7' : totalScore >= 60 ? '#fcd34d' : '#fca5a5';
 
   return (
@@ -136,76 +119,81 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
 
       <div style={{
         display: 'flex', gap: 8, padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)',
-        background: 'rgba(0,0,0,0.15)'
+        background: 'rgba(0,0,0,0.15)', overflowX: 'auto', flexWrap: 'wrap'
       }}>
-        {QUESTIONS.map((q, i) => {
-          const isDone = i < currentSection || (i === currentSection && allFilled);
+        {questions.map((q, i) => {
+          const sq = questionScore(q.voiceScore, q.deductions);
+          const isDone = sq > 0;
           return (
-            <button key={q.key} onClick={() => setCurrentSection(i)}
+            <button key={i} onClick={() => setCurrentSection(i)}
               className={`btn-action ${i === currentSection ? 'add' : ''}`}
               style={{
-                flex: 1, justifyContent: 'center', fontSize: '0.82rem',
+                flex: '1 0 auto', justifyContent: 'center', fontSize: '0.82rem',
                 background: i === currentSection ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.04)',
                 borderColor: i === currentSection ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.08)',
                 color: i === currentSection ? '#93c5fd' : 'var(--text-muted)'
               }}>
-              {isDone ? '✓ ' : ''}{q.label}
+              {isDone ? '✓ ' : ''}{labelForIndex(i)}
             </button>
           );
         })}
+        {questions.length < 5 && (
+          <button onClick={addQuestion}
+            className="btn-action add"
+            style={{ flex: '0 0 auto', fontSize: '0.82rem', padding: '6px 14px' }}>
+            + إضافة سؤال
+          </button>
+        )}
       </div>
 
       <div className="eval-table-area">
         <div className="glass-panel" style={{ maxWidth: 700, margin: '0 auto' }}>
-          <h3 style={{ fontSize: '1.1rem', marginBottom: 4 }}>{section.label}</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>{section.desc}</p>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: 16 }}>{labelForIndex(currentSection)}</h3>
 
-          {section.key === 'voice' ? (
-            <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>
-                قيّم صوت الطالب وأداءه من {AR}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-                <input type="number" min="0" max="10" step="0.5" value={voiceScore}
-                  onChange={e => setVoiceScore(Math.min(10, Math.max(0, Number(e.target.value) || 0)))}
-                  style={{
-                    width: 80, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)',
-                    color: 'var(--text-main)', padding: '10px 12px', borderRadius: 12, textAlign: 'center',
-                    fontSize: '1.3rem', fontWeight: 700, direction: 'ltr'
-                  }}
-                  autoFocus
-                />
-                <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>/ {AR}</span>
-              </div>
+          <div style={{ marginBottom: 20, padding: '16px 20px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 10, fontSize: '0.85rem' }}>
+              الصوت والأداء — من {VOICE_MAX}
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input type="number" min="0" max="10" step="0.5" value={section.voiceScore}
+                onChange={e => updateVoice(currentSection, e.target.value)}
+                style={{
+                  width: 80, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)',
+                  color: 'var(--text-main)', padding: '10px 12px', borderRadius: 12, textAlign: 'center',
+                  fontSize: '1.3rem', fontWeight: 700, direction: 'ltr'
+                }}
+                autoFocus
+              />
+              <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>/ {VOICE_MAX}</span>
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {section.criteria.map(key => {
-                const count = deductions[key] || 0;
-                const val = DEDUCTION_VALUES[key] || 0;
-                return (
-                  <div key={key} style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '10px 14px',
-                    border: '1px solid rgba(255,255,255,0.06)'
-                  }}>
-                    <button onClick={() => dec(key)}
-                      className="btn-action edit-btn"
-                      style={{ padding: '6px 10px', opacity: count === 0 ? 0.3 : 1, fontSize: '1rem' }}
-                      disabled={count === 0}>−</button>
-                    <span style={{ flex: 1, fontSize: '0.9rem' }}>{key}</span>
-                    <span style={{ fontWeight: 700, fontSize: '1.1rem', minWidth: 28, textAlign: 'center' }}>{ar(count)}</span>
-                    <button onClick={() => inc(key)}
-                      className="btn-action edit-btn"
-                      style={{ padding: '6px 10px', fontSize: '1rem' }}>+</button>
-                    <span style={{ color: '#fca5a5', fontSize: '0.82rem', minWidth: 40, textAlign: 'left' }}>
-                      -{val.toFixed(1)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+            {DEDUCTION_KEYS.map(key => {
+              const count = section.deductions[key] || 0;
+              const val = DEDUCTION_VALUES[key] || 0;
+              return (
+                <div key={key} style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '8px 12px',
+                  border: '1px solid rgba(255,255,255,0.06)'
+                }}>
+                  <button onClick={() => dec(currentSection, key)}
+                    className="btn-action edit-btn"
+                    style={{ padding: '4px 8px', opacity: count === 0 ? 0.3 : 1, fontSize: '0.9rem' }}
+                    disabled={count === 0}>−</button>
+                  <span style={{ flex: 1, fontSize: '0.82rem' }}>{key}</span>
+                  <span style={{ fontWeight: 700, fontSize: '1rem', minWidth: 24, textAlign: 'center' }}>{ar(count)}</span>
+                  <button onClick={() => inc(currentSection, key)}
+                    className="btn-action edit-btn"
+                    style={{ padding: '4px 8px', fontSize: '0.9rem' }}>+</button>
+                  <span style={{ color: '#fca5a5', fontSize: '0.75rem', minWidth: 36, textAlign: 'left' }}>
+                    -{val.toFixed(1)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
 
           <div style={{
             marginTop: 20, padding: '14px 18px', borderRadius: 12,
@@ -214,30 +202,33 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted 
           }}>
             <span style={{ color: 'var(--text-muted)' }}>مجموع السؤال</span>
             <strong style={{ fontSize: '1.2rem', color: scoreColor }}>
-              {section.key === 'voice' ? ar(voiceScore) : ar(Math.round(section.key === 'memorization' ? q1Score : q2Score))}
-              /{AR}
+              {ar(questionScore(section.voiceScore, section.deductions))}/{VOICE_MAX}
             </strong>
           </div>
 
-          {currentSection < QUESTIONS.length - 1 ? (
-            <button className="btn-primary" onClick={() => setCurrentSection(s => s + 1)}
-              style={{ marginTop: 20, width: 'auto', padding: '10px 40px' }}>
-              التالي ←
-            </button>
-          ) : (
-            <button className="btn-primary" onClick={handleSubmit} disabled={saving || !allFilled}
-              style={{ marginTop: 20, width: 'auto', padding: '12px 48px', background: '#166534' }}>
-              {saving ? 'جارٍ الحفظ...' : 'تسليم التقييم'}
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'space-between' }}>
+            <div>
+              {currentSection < questions.length - 1 ? (
+                <button className="btn-primary" onClick={() => setCurrentSection(s => s + 1)}
+                  style={{ width: 'auto', padding: '10px 40px' }}>
+                  التالي ←
+                </button>
+              ) : (
+                <button className="btn-primary" onClick={handleSubmit} disabled={saving || totalScore === 0}
+                  style={{ width: 'auto', padding: '12px 48px', background: '#166534' }}>
+                  {saving ? 'جارٍ الحفظ...' : 'تسليم التقييم'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="eval-footer">
         <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-          {QUESTIONS.map((q, i) => {
-            const s = q.key === 'voice' ? ar(voiceScore) : ar(Math.round(q.key === 'memorization' ? q1Score : q2Score));
-            return `${q.label}: ${s}/${AR}${i < 2 ? ' | ' : ''}`;
+          {questions.map((q, i) => {
+            const s = questionScore(q.voiceScore, q.deductions);
+            return `${labelForIndex(i)}: ${ar(s)}/${VOICE_MAX}${i < questions.length - 1 ? ' | ' : ''}`;
           })}
         </span>
         <div className="eval-score-badge" style={{ background: `${scoreColor}1A`, borderColor: `${scoreColor}40`, color: scoreColor, padding: '6px 16px', fontSize: '0.9rem' }}>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { ar } from '../utils/numbers.js';
-import { QUAL_DEDUCTIONS } from '../utils/qualificationConfig.js';
+import { DEDUCTION_KEYS, QUAL_DEDUCTIONS } from '../utils/qualificationConfig.js';
 import Modal from './Modal.jsx';
 
 export default function AdminFinalsOverview({ onChanged }) {
@@ -223,7 +223,17 @@ export default function AdminFinalsOverview({ onChanged }) {
 
 function AdminDetailsBreakdown({ queueItem, onClose }) {
   const evaluations = queueItem.evaluations || [];
-  const questions = ['الحفظ', 'التجويد والأداء', 'الصوت'];
+
+  const labelForIndex = (i) => {
+    const names = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس'];
+    return `السؤال ${names[i] || i + 1}`;
+  };
+
+  const questionsFor = (e) => {
+    const rawDed = e.deductions;
+    if (Array.isArray(rawDed) && rawDed.length > 0) return rawDed;
+    return [{ question_index: 0, voice_score: e.voice_score || 0, deductions: rawDed || {} }];
+  };
 
   return (
     <Modal title={`تفاصيل التحكيم: ${queueItem.student?.name || ''}`} onClose={onClose}>
@@ -232,17 +242,7 @@ function AdminDetailsBreakdown({ queueItem, onClose }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {evaluations.map((e, idx) => {
-            const deductions = e.deductions || {};
-            const voiceScore = e.voice_score || 0;
-
-            const q1 = ['التلعثم', 'التردد', 'النقص أو الزيادة'];
-            const q2 = ['اللحن الخفي', 'اللحن', 'التنبيه'];
-
-            const q1Ded = Math.round(q1.reduce((s, c) => s + (deductions[c] || 0) * (QUAL_DEDUCTIONS[c] || 0), 0) * 100) / 100;
-            const q2Ded = Math.round(q2.reduce((s, c) => s + (deductions[c] || 0) * (QUAL_DEDUCTIONS[c] || 0), 0) * 100) / 100;
-            const q1Score = Math.max(0, Math.round((10 - q1Ded) * 100) / 100);
-            const q2Score = Math.max(0, Math.round((10 - q2Ded) * 100) / 100);
-
+            const qs = questionsFor(e);
             const boxColor = idx === 0 ? 'rgba(59,130,246,0.08)' : 'rgba(16,185,129,0.08)';
             const boxBorder = idx === 0 ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.25)';
 
@@ -265,31 +265,41 @@ function AdminDetailsBreakdown({ queueItem, onClose }) {
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>السؤال الأول: الحفظ</span>
-                    <span style={{ fontWeight: 600 }}>{ar(q1Score)}/عشرة {q1Ded > 0 && <span style={{ color: '#fca5a5', fontSize: '0.78rem' }}>(-{q1Ded.toFixed(1)})</span>}</span>
-                  </div>
-                  {q1.filter(c => (deductions[c] || 0) > 0).map(c => (
-                    <div key={c} style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginRight: 16 }}>
-                      {c}: {ar(deductions[c])} × -{QUAL_DEDUCTIONS[c]}
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {qs.map((q, qi) => {
+                    const ded = q.deductions || {};
+                    const voice = q.voice_score || 0;
+                    const totalDed = DEDUCTION_KEYS.reduce((s, c) => s + (ded[c] || 0) * (QUAL_DEDUCTIONS[c] || 0), 0);
+                    const qScore = Math.max(0, 10 - totalDed + Number(voice));
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>السؤال الثاني: التجويد والأداء</span>
-                    <span style={{ fontWeight: 600 }}>{ar(q2Score)}/عشرة {q2Ded > 0 && <span style={{ color: '#fca5a5', fontSize: '0.78rem' }}>(-{q2Ded.toFixed(1)})</span>}</span>
-                  </div>
-                  {q2.filter(c => (deductions[c] || 0) > 0).map(c => (
-                    <div key={c} style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginRight: 16 }}>
-                      {c}: {ar(deductions[c])} × -{QUAL_DEDUCTIONS[c]}
-                    </div>
-                  ))}
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>السؤال الثالث: الصوت</span>
-                    <span style={{ fontWeight: 600 }}>{ar(voiceScore)}/عشرة</span>
-                  </div>
+                    return (
+                      <div key={qi} style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        borderRadius: 10, padding: '10px 14px',
+                        border: '1px solid rgba(255,255,255,0.06)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{labelForIndex(qi)}</span>
+                          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                            {ar(Math.round(qScore))}/عشرة
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                            الصوت: {ar(voice)}/عشرة
+                          </span>
+                          {DEDUCTION_KEYS.filter(c => (ded[c] || 0) > 0).map(c => (
+                            <span key={c} className="teacher-badge" style={{
+                              background: 'rgba(252,165,165,0.1)', borderColor: 'rgba(252,165,165,0.2)',
+                              color: '#fca5a5', fontSize: '0.72rem', padding: '2px 8px'
+                            }}>
+                              {c}: {ar(ded[c])}× -{QUAL_DEDUCTIONS[c]}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
