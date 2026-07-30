@@ -138,36 +138,19 @@ export default function Qualifications() {
                 <>
                   <FinalsStats committees={committees} />
                   <CommitteeManagement onChanged={loadCommittees} />
-
                   <div style={{
-                    display: 'flex', gap: 8, marginTop: 24, marginBottom: 8,
-                    borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12,
+                    display: 'flex', gap: 8, marginTop: 20, marginBottom: 12,
                   }}>
-                    <button className="btn-action"
-                      onClick={() => setShowLeaderboard(false)}
-                      style={{
-                        background: !showLeaderboard ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                        color: !showLeaderboard ? '#fff' : 'var(--text-main)',
-                        border: !showLeaderboard ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
-                      }}>
-                      نظرة عامة
-                    </button>
                     <button className="btn-action"
                       onClick={() => setShowLeaderboard(true)}
                       style={{
-                        background: showLeaderboard ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                        color: showLeaderboard ? '#fff' : 'var(--text-main)',
-                        border: showLeaderboard ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid var(--glass-border)',
                       }}>
                       🏆 لوحة الشرف
                     </button>
                   </div>
-
-                  {showLeaderboard ? (
-                    <Leaderboard />
-                  ) : (
-                    <AdminFinalsOverview onChanged={loadCommittees} />
-                  )}
+                  <AdminFinalsOverview onChanged={loadCommittees} />
                 </>
               )}
 
@@ -192,6 +175,21 @@ export default function Qualifications() {
         </>
       )}
       </div>
+
+      {showLeaderboard && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 2000,
+          background: 'rgba(2,6,23,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+          padding: 'clamp(12px, 2vw, 24px)',
+          overflow: 'auto',
+        }} onClick={() => setShowLeaderboard(false)}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 1100, margin: 'auto' }}>
+            <Leaderboard onClose={() => setShowLeaderboard(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

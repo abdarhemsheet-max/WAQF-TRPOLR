@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { ar, ar1 } from '../utils/numbers.js';
 import { LEVELS } from '../utils/levels.js';
-import TopBar from '../components/TopBar.jsx';
 import { PrintIcon, ExportIcon } from '../components/Icons.jsx';
 import * as XLSX from 'xlsx';
 
@@ -17,7 +16,7 @@ function rankText(i) {
 
 const MEDAL = ['🥇', '🥈', '🥉'];
 
-export default function Leaderboard() {
+export default function Leaderboard({ onClose }) {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState([]);
 
@@ -108,73 +107,69 @@ export default function Leaderboard() {
   };
 
   return (
-    <div className="container">
-      <TopBar />
-
-      <div className="content-card">
-        <div style={{
-          background: '#ffffff',
-          borderRadius: 28,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.06)',
-          padding: 'clamp(20px, 3vw, 36px)',
-          color: '#1e293b',
-        }}>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            flexWrap: 'wrap', gap: 12, marginBottom: 8,
-          }}>
-            <div>
-              <h1 style={{ fontSize: 'clamp(1.2rem, 3.5vw, 1.6rem)', fontWeight: 800, color: '#1e293b', margin: 0 }}>
-                🏆 لوحة الشرف والنتائج النهائية
-              </h1>
-              <p style={{ color: '#64748b', fontSize: 'clamp(0.8rem, 2vw, 0.9rem)', marginTop: 4 }}>
-                {ar(totalStudents)} طالباً — {ar(levelCount)} مستويات
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button onClick={handlePrint} className="btn-action"
-                style={{
-                  background: '#e2e8f0', color: '#334155', border: '1px solid #cbd5e1',
-                  borderRadius: 12, padding: '10px 16px', fontWeight: 700, cursor: 'pointer',
-                  display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.85rem',
-                }}>
-                <PrintIcon /> طباعة
-              </button>
-              <button onClick={handleExport} className="btn-action export"
-                style={{
-                  background: '#059669', color: '#fff', border: 'none',
-                  borderRadius: 12, padding: '10px 16px', fontWeight: 700, cursor: 'pointer',
-                  display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.85rem',
-                }}>
-                <ExportIcon /> تصدير Excel
-              </button>
-            </div>
-          </div>
+    <div style={{
+      background: '#ffffff',
+      borderRadius: 28,
+      boxShadow: '0 20px 60px rgba(0,0,0,0.12), 0 8px 20px rgba(0,0,0,0.08)',
+      padding: 'clamp(20px, 3vw, 36px)',
+      color: '#1e293b',
+    }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexWrap: 'wrap', gap: 12, marginBottom: 24,
+      }}>
+        <div>
+          <h1 style={{ fontSize: 'clamp(1.2rem, 3.5vw, 1.6rem)', fontWeight: 800, color: '#1e293b', margin: 0 }}>
+            🏆 لوحة الشرف والنتائج النهائية
+          </h1>
+          <p style={{ color: '#64748b', fontSize: 'clamp(0.8rem, 2vw, 0.9rem)', marginTop: 4 }}>
+            {ar(totalStudents)} طالباً — {ar(levelCount)} مستويات
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button onClick={handlePrint} className="btn-action"
+            style={{
+              background: '#e2e8f0', color: '#334155', border: '1px solid #cbd5e1',
+              borderRadius: 12, padding: '10px 16px', fontWeight: 700, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.85rem',
+            }}>
+            <PrintIcon /> طباعة
+          </button>
+          <button onClick={handleExport} className="btn-action export"
+            style={{
+              background: '#059669', color: '#fff', border: 'none',
+              borderRadius: 12, padding: '10px 16px', fontWeight: 700, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.85rem',
+            }}>
+            <ExportIcon /> تصدير Excel
+          </button>
+          {onClose && (
+            <button onClick={onClose}
+              style={{
+                background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca',
+                borderRadius: 12, padding: '10px 16px', fontWeight: 700, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: '0.85rem',
+              }}>
+              ✕ إغلاق
+            </button>
+          )}
         </div>
       </div>
 
       {loading ? (
-        <div className="content-card">
-          <div style={{
-            background: '#ffffff', borderRadius: 28, padding: '60px 20px',
-            textAlign: 'center', color: '#64748b', fontSize: '1rem',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.06)',
-          }}>
-            جارٍ تحميل النتائج...
-          </div>
+        <div style={{
+          padding: '60px 20px', textAlign: 'center', color: '#64748b', fontSize: '1rem',
+        }}>
+          جارٍ تحميل النتائج...
         </div>
       ) : totalStudents === 0 ? (
-        <div className="content-card">
-          <div style={{
-            background: '#ffffff', borderRadius: 28, padding: '60px 20px',
-            textAlign: 'center', color: '#64748b', fontSize: '1rem',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.06)',
-          }}>
-            لا توجد نتائج معتمدة بعد
-          </div>
+        <div style={{
+          padding: '60px 20px', textAlign: 'center', color: '#64748b', fontSize: '1rem',
+        }}>
+          لا توجد نتائج معتمدة بعد
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {Object.entries(grouped).map(([level, students]) => (
             <LevelSection key={level} level={level} students={students} />
           ))}
@@ -186,13 +181,12 @@ export default function Leaderboard() {
 
 function LevelSection({ level, students }) {
   return (
-    <div className="content-card">
-      <div style={{
-        background: '#ffffff',
-        borderRadius: 28,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.06)',
-        overflow: 'hidden',
-      }}>
+    <div style={{
+      background: '#ffffff',
+      borderRadius: 28,
+      boxShadow: '0 20px 60px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.06)',
+      overflow: 'hidden',
+    }}>
         <div style={{
           background: 'linear-gradient(135deg, #4A7C8E, #3D6A7A)',
           padding: 'clamp(14px, 2.5vw, 22px) clamp(18px, 3vw, 28px)',
@@ -274,7 +268,6 @@ function LevelSection({ level, students }) {
             </tbody>
           </table>
         </div>
-      </div>
     </div>
   );
 }
