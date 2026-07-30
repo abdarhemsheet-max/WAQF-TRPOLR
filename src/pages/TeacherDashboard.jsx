@@ -38,10 +38,11 @@ export default function TeacherDashboard() {
     <div className="container">
       <TopBar />
 
-      <div className="print-header">
-        <h2>تقرير متابعة إنجاز المتون</h2>
-        <p>تاريخ التقرير: {new Date().toLocaleDateString('ar-EG')}</p>
-      </div>
+      <div className="content-card">
+        <div className="print-header">
+          <h2>تقرير متابعة إنجاز المتون</h2>
+          <p>تاريخ التقرير: {new Date().toLocaleDateString('ar-EG')}</p>
+        </div>
 
       <div className="header-section">
         <div className="title">
@@ -108,6 +109,7 @@ export default function TeacherDashboard() {
           onSaved={() => {}}
         />
       )}
+      </div>
     </div>
   );
 }

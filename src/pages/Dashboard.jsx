@@ -54,13 +54,14 @@ export default function Dashboard() {
     <div className="container">
       <TopBar />
 
-      <div className="title" style={{ marginBottom: 24 }}>
-        <h1>لوحة التحكم الإحصائية</h1>
-        <p>
-          {isAdmin ? 'جميع الحلقات' : `الحلقة ${user.halaqa_number}`} — إحصائيات لحظية من قاعدة
-          البيانات
-        </p>
-      </div>
+      <div className="content-card">
+        <div className="title" style={{ marginBottom: 24 }}>
+          <h1>لوحة التحكم الإحصائية</h1>
+          <p>
+            {isAdmin ? 'جميع الحلقات' : `الحلقة ${user.halaqa_number}`} — إحصائيات لحظية من قاعدة
+            البيانات
+          </p>
+        </div>
 
       {/* بطاقات الإحصائيات */}
       <div className="stats-grid">
@@ -224,6 +225,7 @@ export default function Dashboard() {
           </table>
         </div>
       </section>
+      </div>
     </div>
   );
 }

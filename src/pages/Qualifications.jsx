@@ -117,12 +117,13 @@ export default function Qualifications() {
     <div className="container">
       <TopBar />
 
-      <div className="title">
-        <h1>تصفية دورة حفاظ الوحيين</h1>
-        <p style={{ color: 'var(--text-muted)' }}>
-          {isAdmin ? 'إدارة لجان التحكيم والتصفيات' : 'مرحباً بك في التصفيات'}
-        </p>
-      </div>
+      <div className="content-card">
+        <div className="title">
+          <h1>تصفية دورة حفاظ الوحيين</h1>
+          <p style={{ color: 'var(--text-muted)' }}>
+            {isAdmin ? 'إدارة لجان التحكيم والتصفيات' : 'مرحباً بك في التصفيات'}
+          </p>
+        </div>
 
       {loading ? (
         <div className="empty-state">جارٍ تحميل البيانات...</div>
@@ -167,6 +168,7 @@ export default function Qualifications() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

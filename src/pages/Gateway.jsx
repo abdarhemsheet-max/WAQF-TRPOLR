@@ -12,10 +12,11 @@ export default function Gateway() {
     <div className="container">
       <TopBar />
 
-      <div className="title">
-        <h1>أهلاً بك، {user.name}</h1>
-        <p>اختر البرنامج الذي تريد متابعته</p>
-      </div>
+      <div className="content-card">
+        <div className="title">
+          <h1>أهلاً بك، {user.name}</h1>
+          <p>اختر البرنامج الذي تريد متابعته</p>
+        </div>
 
       <div className="gateway-grid">
         <div
@@ -49,6 +50,7 @@ export default function Gateway() {
           <h2>تصفية دورة حفاظ الوحيين</h2>
           <p>لجان التحكيم وتقييم الطلاب</p>
         </div>
+      </div>
       </div>
     </div>
   );
