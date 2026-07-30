@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS, computeFinalScore, totalDeductionAmount, VOICE_MAX } from '../utils/qualificationConfig.js';
 import { ar } from '../utils/numbers.js';
@@ -8,6 +8,12 @@ export default function QualificationScoring({ queueItem, user, onClose, onSaved
   const [voiceScore, setVoiceScore] = useState(0);
   const [saving, setSaving] = useState(false);
   const [savedEval, setSavedEval] = useState(null);
+  const [otherEval, setOtherEval] = useState(null);
+
+  useEffect(() => {
+    const other = (queueItem.evaluations || []).find(e => e.evaluator_id !== user.id);
+    if (other) setOtherEval(other);
+  }, [queueItem, user.id]);
 
   const totalDeduct = useMemo(() => totalDeductionAmount(deductions), [deductions]);
   const finalScore = useMemo(() => computeFinalScore(voiceScore, deductions), [voiceScore, deductions]);
@@ -17,31 +23,60 @@ export default function QualificationScoring({ queueItem, user, onClose, onSaved
 
   const handleSave = async () => {
     setSaving(true);
-    const { error: dbErr } = await supabase.from('qualification_evaluations').insert({
+
+    const payload = {
       queue_id: queueItem.id,
-      student_id: queueItem.student_id,
+      student_id: queueItem.student_id || null,
+      finals_student_id: queueItem.finals_student_id || null,
       evaluator_id: user.id,
       voice_score: Number(voiceScore),
       deductions,
       final_score: finalScore
-    });
+    };
+
+    const { error: dbErr } = await supabase.from('qualification_evaluations').insert(payload);
     if (dbErr) { alert('فشل الحفظ: ' + dbErr.message); setSaving(false); return; }
 
-    await supabase.from('committee_queue').update({ status: 'evaluated', evaluated_at: new Date().toISOString() }).eq('id', queueItem.id);
+    const allEvals = [...(queueItem.evaluations || []), payload];
+    const doneCount = allEvals.length + 1;
+    const committeeSize = 2;
 
-    setSavedEval({ voice_score: Number(voiceScore), deductions, final_score: finalScore });
+    if (doneCount >= committeeSize) {
+      await supabase.from('committee_queue').update({ status: 'evaluated', evaluated_at: new Date().toISOString() }).eq('id', queueItem.id);
+    }
+
+    setSavedEval(payload);
     onSaved?.();
   };
+
+  const combinedScore = useMemo(() => {
+    if (!otherEval) return null;
+    return Math.round((finalScore + otherEval.final_score) / 2);
+  }, [finalScore, otherEval]);
 
   if (savedEval) {
     return (
       <div className="glass-panel" style={{ textAlign: 'center', padding: '40px 20px' }}>
         <div style={{ fontSize: '3rem', marginBottom: 12 }}>✅</div>
-        <h2 style={{ marginBottom: 8 }}>تم تسليم التقييم</h2>
+        <h2 style={{ marginBottom: 8 }}>تم تسليم تقييمك</h2>
         <p style={{ color: 'var(--text-muted)', marginBottom: 16 }}>
-          {queueItem.student?.name} — النتيجة: {ar(Math.round(finalScore))}%
+          {queueItem.student?.name} — تقييمك: {ar(Math.round(finalScore))}%
         </p>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+        {combinedScore !== null && (
+          <div style={{
+            padding: '16px 24px', borderRadius: 16, display: 'inline-block', marginBottom: 16,
+            background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)'
+          }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 4 }}>متوسط التقييمين</p>
+            <p style={{ fontSize: '2rem', fontWeight: 700, color: '#6ee7b7' }}>{ar(combinedScore)}%</p>
+          </div>
+        )}
+        {!combinedScore && otherEval && (
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            تقييم العضو الآخر: {ar(Math.round(otherEval.final_score))}%
+          </p>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
           <button className="btn-action" onClick={onClose}>رجوع</button>
         </div>
       </div>
@@ -67,6 +102,17 @@ export default function QualificationScoring({ queueItem, user, onClose, onSaved
           {ar(Math.round(finalScore))}%
         </div>
       </div>
+
+      {otherEval && (
+        <div style={{
+          padding: '10px 16px', borderRadius: 12, marginBottom: 12,
+          background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
+          fontSize: '0.85rem', color: '#93c5fd'
+        }}>
+          العضو الآخر قدّم تقييماً: {ar(Math.round(otherEval.final_score))}%
+          {combinedScore !== null && <> · المتوسط: <strong>{ar(combinedScore)}%</strong></>}
+        </div>
+      )}
 
       <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <label style={{ margin: 0, whiteSpace: 'nowrap' }}>تقييم الصوت والأداء (من {VOICE_MAX}):</label>

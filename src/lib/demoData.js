@@ -65,13 +65,21 @@ function buildSeed() {
       { id: 'demo-cm-1', committee_id: 'demo-committee-1', user_id: T1, is_head: true, created_at: now },
       { id: 'demo-cm-2', committee_id: 'demo-committee-1', user_id: T2, is_head: false, created_at: now }
     ],
+    finals_students: [
+      { id: 'demo-fs-1', name: 'أحمد المختار', guardian_phone: '218912345001', memorization_center: 'مركز تحفيظ الأوقاف', level: 'الأول', matn: 'متن الجزرية', progress: 85, created_by: T1, created_at: now },
+      { id: 'demo-fs-2', name: 'خالد التومي', guardian_phone: '218912345002', memorization_center: 'مركز سيدي سالم', level: 'الثاني', matn: 'متن الشاطبية', progress: 70, created_by: T1, created_at: now }
+    ],
     committee_queue: [
       {
-        id: 'demo-cq-1', committee_id: 'demo-committee-1', student_id: 'demo-student-0001',
+        id: 'demo-cq-1', committee_id: 'demo-committee-1', student_id: 'demo-student-0001', finals_student_id: null,
         added_by: T1, status: 'pending', created_at: now, evaluated_at: null
       },
       {
-        id: 'demo-cq-2', committee_id: 'demo-committee-1', student_id: 'demo-student-0004',
+        id: 'demo-cq-2', committee_id: 'demo-committee-1', student_id: null, finals_student_id: 'demo-fs-1',
+        added_by: T1, status: 'pending', created_at: now, evaluated_at: null
+      },
+      {
+        id: 'demo-cq-3', committee_id: 'demo-committee-1', student_id: null, finals_student_id: 'demo-fs-2',
         added_by: T1, status: 'pending', created_at: now, evaluated_at: null
       }
     ],
@@ -84,7 +92,7 @@ function migrate(db) {
   const seed = buildSeed();
   let changed = false;
 
-  const newTables = ['message_templates', 'message_reports', 'committees', 'committee_members', 'committee_queue', 'qualification_evaluations'];
+  const newTables = ['message_templates', 'message_reports', 'committees', 'committee_members', 'committee_queue', 'qualification_evaluations', 'finals_students'];
   for (const table of newTables) {
     if (!Array.isArray(db[table])) {
       db[table] = seed[table] || [];
