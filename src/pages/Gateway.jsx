@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import TopBar from '../components/TopBar.jsx';
-import { BookIcon, ChartIcon, StarIcon } from '../components/Icons.jsx';
+import { BookIcon, StarIcon } from '../components/Icons.jsx';
 
 /** بوابة النظام — المدخل الوحيد إلى لوحة التحكم */
 export default function Gateway() {
@@ -33,24 +33,6 @@ export default function Gateway() {
           <h2>دورة حفاظ الوحيين السادسة</h2>
           <p>متابعة إنجاز الطلاب في المتون المقررة</p>
         </div>
-
-        {isAdmin && (
-          <div
-            className="gateway-card"
-            onClick={() => navigate('/dashboard')}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') navigate('/dashboard');
-            }}
-          >
-            <div className="icon-circle">
-              <ChartIcon />
-            </div>
-            <h2>لوحة التحكم الإحصائية</h2>
-            <p>أفضل عشرة طلاب وسجل عمليات المراسلة</p>
-          </div>
-        )}
 
         <div
           className="gateway-card"

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
 import { useStudents } from '../hooks/useStudents.js';
 import { useTemplates } from '../hooks/useTemplates.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ar } from '../utils/numbers.js';
-import { TrashIcon } from '../components/Icons.jsx';
+import { TrashIcon, ChartIcon } from '../components/Icons.jsx';
 import Modal from '../components/Modal.jsx';
 import TopBar from '../components/TopBar.jsx';
 import Toolbar from '../components/Toolbar.jsx';
@@ -18,6 +19,7 @@ import EvaluationPanel from '../components/EvaluationPanel.jsx';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const {
     visible,
     loading,
@@ -103,7 +105,12 @@ export default function AdminDashboard() {
           <p>جميع الحلقات - عدد المحفّظين: {ar(teachers.length)}</p>
         </div>
 
-        <Toolbar
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn-action" onClick={() => navigate('/dashboard')} style={{ gap: 6 }}>
+            <ChartIcon /> إحصائيات الدورة
+          </button>
+
+          <Toolbar
           query={query}
           onQueryChange={setQuery}
           levelFilter={levelFilter}
@@ -113,6 +120,7 @@ export default function AdminDashboard() {
           onMassMessage={() => setMessaging(true)}
           onTemplates={() => setManagingTemplates(true)}
         />
+      </div>
       </div>
 
       {error && <div className="alert error">{error}</div>}

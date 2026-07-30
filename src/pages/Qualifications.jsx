@@ -7,6 +7,7 @@ import CommitteeManagement from '../components/CommitteeManagement.jsx';
 import CommitteeQueue from '../components/CommitteeQueue.jsx';
 import FinalsEvaluationLockdown from '../components/FinalsEvaluationLockdown.jsx';
 import AdminFinalsOverview from '../components/AdminFinalsOverview.jsx';
+import FinalsStats from '../components/FinalsStats.jsx';
 
 const STORAGE_KEY = 'waqf_eval_state';
 const META_KEY = 'waqf_eval_meta';
@@ -138,6 +139,7 @@ export default function Qualifications() {
             <>
               {isAdmin && (
                 <>
+                  <FinalsStats committees={committees} />
                   <CommitteeManagement onChanged={loadCommittees} />
                   <div style={{ marginTop: 24 }}>
                     <AdminFinalsOverview onChanged={loadCommittees} />
