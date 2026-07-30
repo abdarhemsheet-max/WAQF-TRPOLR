@@ -29,6 +29,22 @@ create table if not exists public.committee_members (
 create unique index if not exists committee_heads_uniq
     on public.committee_members (user_id) where is_head = true;
 
+-- أقصى 4 أعضاء لكل لجنة
+create or replace function public.check_committee_member_limit()
+returns trigger as $$
+begin
+    if (select count(*) from public.committee_members where committee_id = new.committee_id) >= 4 then
+        raise exception 'لا يمكن أن يزيد عدد أعضاء اللجنة عن 4';
+    end if;
+    return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists committee_member_limit on public.committee_members;
+create trigger committee_member_limit
+    before insert on public.committee_members
+    for each row execute function public.check_committee_member_limit();
+
 -- ------------------------------------------------------------
 -- 3) طابور التصفية (الطلاب المنتظرون للتقييم)
 -- ------------------------------------------------------------
@@ -173,6 +189,11 @@ insert into public.committee_members (committee_id, user_id, is_head)
 select c.id, u.id, false
 from public.committees c, public.users u
 where c.name = 'لجنة التحكيم الأولى'
-  and u.name = 'سعد الحربي'
-  and u.role = 'teacher'
+   and u.name = 'سعد الحربي'
+   and u.role = 'teacher'
 on conflict do nothing;
+
+-- ------------------------------------------------------------
+-- 8) إعادة تحميل schema cache
+-- ------------------------------------------------------------
+notify pgrst, 'reload schema';
