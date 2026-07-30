@@ -7,6 +7,7 @@ import Gateway from './pages/Gateway.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import TeacherDashboard from './pages/TeacherDashboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import Qualifications from './pages/Qualifications.jsx';
 
 export default function App() {
   return (
@@ -48,6 +49,15 @@ export default function App() {
           element={
             <ProtectedRoute role="admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/qualifications"
+          element={
+            <ProtectedRoute>
+              <Qualifications />
             </ProtectedRoute>
           }
         />
