@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { isDemo } from './lib/supabaseClient.js';
+import { ToastProvider } from './context/ToastContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import DemoBanner from './components/DemoBanner.jsx';
 import Login from './pages/Login.jsx';
@@ -11,7 +12,7 @@ import Qualifications from './pages/Qualifications.jsx';
 
 export default function App() {
   return (
-    <>
+    <ToastProvider>
       {isDemo && <DemoBanner />}
 
       <Routes>
@@ -64,6 +65,6 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/gateway" replace />} />
       </Routes>
-    </>
+    </ToastProvider>
   );
 }

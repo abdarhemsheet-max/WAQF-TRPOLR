@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { ar } from '../utils/numbers.js';
 import { TrashIcon, PlusIcon } from './Icons.jsx';
 import Modal from './Modal.jsx';
@@ -8,11 +9,13 @@ export default function CommitteeManagement({ onChanged }) {
   const [committees, setCommittees] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', room: '' });
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [headId, setHeadId] = useState('');
   const [error, setError] = useState('');
+  const toast = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,24 +47,51 @@ export default function CommitteeManagement({ onChanged }) {
     if (selectedMembers.length < 2) { setError('يجب اختيار محفّظين اثنين على الأقل'); return; }
     if (!headId) { setError('يجب اختيار رئيس اللجنة'); return; }
 
-    const { data: committee, error: dbErr } = await supabase.from('committees').insert({
-      name: form.name.trim(), room: form.room.trim()
-    }).select('*').single();
-
-    if (dbErr) { setError('تعذّر إنشاء اللجنة: ' + dbErr.message); return; }
-
-    const members = selectedMembers.map(uid => ({
-      committee_id: committee.id, user_id: uid, is_head: uid === headId
-    }));
-
-    await supabase.from('committee_members').insert(members);
-
-    setForm({ name: '', room: '' });
-    setSelectedMembers([]);
-    setHeadId('');
+    // تفاؤل: نضيف اللجنة فوراً
+    const tempId = 'opt-' + Date.now();
+    const memberNames = selectedMembers.map(uid => {
+      const t = teachers.find(tt => tt.id === uid);
+      return { user_id: uid, is_head: uid === headId, teacher_name: t?.name || '' };
+    });
+    const optimisticCommittee = { id: tempId, name: form.name.trim(), room: form.room.trim(), members: memberNames };
+    setCommittees(prev => [...prev, optimisticCommittee]);
     setShowForm(false);
-    load();
-    onChanged?.();
+
+    try {
+      const { data: committee, error: dbErr } = await supabase.from('committees').insert({
+        name: form.name.trim(), room: form.room.trim()
+      }).select('*').single();
+
+      if (dbErr) throw new Error(dbErr.message);
+
+      const members = selectedMembers.map(uid => ({
+        committee_id: committee.id, user_id: uid, is_head: uid === headId
+      }));
+
+      const { error: mErr } = await supabase.from('committee_members').insert(members);
+      if (mErr) throw new Error(mErr.message);
+
+      // استبدال الوهمي بالحقيقي
+      setCommittees(prev => prev.map(c => c.id === tempId ? {
+        ...committee,
+        members: members.map(m => {
+          const t = teachers.find(tt => tt.id === m.user_id);
+          return { ...m, teacher_name: t?.name || '', halaqa_number: t?.halaqa_number || '' };
+        })
+      } : c));
+
+      setForm({ name: '', room: '' });
+      setSelectedMembers([]);
+      setHeadId('');
+      toast.success(`تم إنشاء ${committee.name}`);
+      onChanged?.();
+    } catch (err) {
+      // تراجع: نزيل الوهمي
+      setCommittees(prev => prev.filter(c => c.id !== tempId));
+      setShowForm(true);
+      setError(err.message);
+      toast.error(err.message);
+    }
   };
 
   const toggleMember = (uid) => {
@@ -73,10 +103,24 @@ export default function CommitteeManagement({ onChanged }) {
 
   const handleDelete = async (committee) => {
     if (!confirm(`حذف اللجنة "${committee.name}" نهائياً؟`)) return;
-    await supabase.from('committee_members').delete().eq('committee_id', committee.id);
-    await supabase.from('committees').delete().eq('id', committee.id);
-    load();
-    onChanged?.();
+
+    // تفاؤل: نزيل فوراً
+    const prev = committees;
+    setCommittees(prev => prev.filter(c => c.id !== committee.id));
+    setSavingId(committee.id);
+
+    try {
+      await supabase.from('committee_members').delete().eq('committee_id', committee.id);
+      await supabase.from('committees').delete().eq('id', committee.id);
+      toast.success(`تم حذف ${committee.name}`);
+      onChanged?.();
+    } catch (err) {
+      // تراجع
+      setCommittees(prev => [...prev, committee]);
+      toast.error('فشل حذف اللجنة');
+    } finally {
+      setSavingId(null);
+    }
   };
 
   if (loading) return <div className="empty-state">جارٍ تحميل اللجان...</div>;

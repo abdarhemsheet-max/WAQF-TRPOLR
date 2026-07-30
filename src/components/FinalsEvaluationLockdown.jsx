@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { withRetry } from '../utils/retry.js';
 import { ar } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS, totalDeductionAmount, VOICE_MAX } from '../utils/qualificationConfig.js';
@@ -43,6 +44,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
   const [showConfirm, setShowConfirm] = useState(false);
   const historyRef = useRef([]);
   const hydrated = useRef(false);
+  const toast = useToast();
 
   useEffect(() => {
     try {
@@ -172,7 +174,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
         ignoreDuplicates: false
       })
     );
-    if (error) { alert('فشل الحفظ: ' + error.message); setSaving(false); return; }
+    if (error) { toast.error('فشل الحفظ: ' + error.message); setSaving(false); return; }
 
     localStorage.removeItem(`${STORAGE_KEY}_${queueItem.id}`);
     localStorage.removeItem(`${META_KEY}_${queueItem.id}`);
@@ -193,6 +195,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
       );
     }
 
+    toast.success('تم تسليم التقييم بنجاح');
     onSubmitted(payload);
   };
 

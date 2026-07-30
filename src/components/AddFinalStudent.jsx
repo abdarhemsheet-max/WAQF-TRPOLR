@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { LEVELS } from '../utils/levels.js';
 import { normalizeGuardianPhone } from '../utils/phone.js';
 import Modal from './Modal.jsx';
@@ -15,6 +16,7 @@ export default function AddFinalStudent({ committeeId, userId, onClose, onSaved 
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -27,37 +29,48 @@ export default function AddFinalStudent({ committeeId, userId, onClose, onSaved 
 
     setSaving(true);
 
-    const phone = form.guardian_phone.trim();
-    const payload = {
-      name,
-      guardian_phone: phone ? normalizeGuardianPhone(phone) : null,
-      memorization_center: form.memorization_center.trim(),
-      level: form.level,
-      created_by: userId
-    };
+    // تفاؤل: نبني كياناً وهمياً للتحديث الفوري
+    const optimisticId = crypto.randomUUID?.() || Date.now().toString(36);
+    const optimisticStudent = { id: optimisticId, name, level: form.level, memorization_center: form.memorization_center.trim(), guardian_phone: form.guardian_phone.trim() || null };
 
-    const { data: fs, error: fsErr } = await supabase
-      .from('finals_students')
-      .insert(payload)
-      .select('*')
-      .single();
+    try {
+      const phone = form.guardian_phone.trim();
+      const payload = {
+        name,
+        guardian_phone: phone ? normalizeGuardianPhone(phone) : null,
+        memorization_center: form.memorization_center.trim(),
+        level: form.level,
+        created_by: userId
+      };
 
-    if (fsErr) { setError('فشل الحفظ: ' + fsErr.message); setSaving(false); return; }
+      const { data: fs, error: fsErr } = await supabase
+        .from('finals_students')
+        .insert(payload)
+        .select('*')
+        .single();
 
-    const { error: qErr } = await supabase
-      .from('committee_queue')
-      .insert({
-        committee_id: committeeId,
-        finals_student_id: fs.id,
-        added_by: userId,
-        status: 'pending'
-      });
+      if (fsErr) throw new Error(fsErr.message);
 
-    setSaving(false);
-    if (qErr) { setError('فشل إضافة الطابور: ' + qErr.message); return; }
+      const { error: qErr } = await supabase
+        .from('committee_queue')
+        .insert({
+          committee_id: committeeId,
+          finals_student_id: fs.id,
+          added_by: userId,
+          status: 'pending'
+        });
 
-    onSaved?.(fs);
-    onClose();
+      if (qErr) throw new Error(qErr.message);
+
+      toast.success(`تمت إضافة ${name} إلى طابور التصفيات`);
+      onSaved?.(fs);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

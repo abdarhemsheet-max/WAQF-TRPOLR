@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabaseClient.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { ar } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS } from '../utils/qualificationConfig.js';
 import Modal from './Modal.jsx';
@@ -99,6 +100,7 @@ export default function AdminFinalsOverview({ onChanged }) {
   const [loading, setLoading] = useState(true);
   const [finalizing, setFinalizing] = useState(null);
   const [detailsQ, setDetailsQ] = useState(null);
+  const toast = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -146,13 +148,27 @@ export default function AdminFinalsOverview({ onChanged }) {
   useEffect(() => { load(); }, [load]);
 
   const handleFinalize = async (q) => {
+    // تفاؤل: نحدّث الحالة فوراً
+    setCommittees(prev => prev.map(c => ({
+      ...c, queue: (c.queue || []).map(qq => qq.id === q.id
+        ? { ...qq, status: 'finalized', finalized_at: new Date().toISOString() } : qq)
+    })));
     setFinalizing(q.id);
+
     const { error } = await supabase.from('committee_queue').update({
       status: 'finalized', finalized_at: new Date().toISOString()
     }).eq('id', q.id);
-    if (error) { alert('فشل الاعتماد: ' + error.message); setFinalizing(null); return; }
+
     setFinalizing(null);
-    load();
+    if (error) {
+      // تراجع
+      setCommittees(prev => prev.map(c => ({
+        ...c, queue: (c.queue || []).map(qq => qq.id === q.id ? q : qq)
+      })));
+      toast.error('فشل الاعتماد: ' + error.message);
+      return;
+    }
+    toast.success('تم اعتماد النتيجة');
     onChanged?.();
   };
 
