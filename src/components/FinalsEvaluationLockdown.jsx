@@ -310,13 +310,13 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
             <>
               <div style={{ marginBottom: 20, padding: '16px 20px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <p style={{ color: 'var(--text-muted)', marginBottom: 10, fontSize: '0.85rem' }}>
-                  الصوت والأداء — من {VOICE_MAX} (يُسمح {VOICE_MAX === 'عشرة' ? '5 إلى 9' : '5-9'})
+                  الصوت والأداء — من {VOICE_MAX} (يُسمح {VOICE_MAX === 'عشرة' ? '5.0 إلى 9.0' : '5-9'})
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <input type="number" min="5" max="9" step="0.5"
+                  <input type="number" min="5" max="9" step="0.1"
                     value={section.voiceScore === 0 ? '' : section.voiceScore}
                     onChange={e => updateVoice(currentSection, e.target.value)}
-                    placeholder="5-9"
+                    placeholder="5.0-9.0"
                     style={{
                       width: 80, background: 'rgba(255,255,255,0.06)', border: '1px solid var(--glass-border)',
                       color: 'var(--text-main)', padding: '10px 12px', borderRadius: 12, textAlign: 'center',
