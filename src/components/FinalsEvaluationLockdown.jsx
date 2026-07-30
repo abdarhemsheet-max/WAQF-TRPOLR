@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { withRetry } from '../utils/retry.js';
-import { ar } from '../utils/numbers.js';
+import { ar, ar1 } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS, totalDeductionAmount, VOICE_MAX } from '../utils/qualificationConfig.js';
 import Modal from './Modal.jsx';
 
@@ -30,7 +30,7 @@ function totalPercentage(questions) {
   const active = questions.filter(q => !q.cancelled);
   if (active.length === 0) return 0;
   const total = active.reduce((s, q) => s + questionScore(q.voiceScore, q.deductions), 0);
-  return Math.round(total / active.length);
+  return Math.round((total / active.length) * 10) / 10;
 }
 
 function labelForIndex(i) {
@@ -370,7 +370,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
               }}>
                 <span style={{ color: 'var(--text-muted)' }}>مجموع السؤال</span>
                 <strong style={{ fontSize: '1.2rem', color: scoreColor }}>
-                  {ar(Math.round(questionScore(section.voiceScore, section.deductions)))}%
+                  {ar1(questionScore(section.voiceScore, section.deductions))}%
                 </strong>
               </div>
             </>
@@ -399,8 +399,8 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
         <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
           {questions.map((q, i) => {
             if (q.cancelled) return `${labelForIndex(i)}: ملغي${i < questions.length - 1 ? ' | ' : ''}`;
-            const s = Math.round(questionScore(q.voiceScore, q.deductions));
-            return `${labelForIndex(i)}: ${ar(s)}%${i < questions.length - 1 ? ' | ' : ''}`;
+            const s = questionScore(q.voiceScore, q.deductions);
+            return `${labelForIndex(i)}: ${ar1(s)}%${i < questions.length - 1 ? ' | ' : ''}`;
           })}
         </span>
       </div>

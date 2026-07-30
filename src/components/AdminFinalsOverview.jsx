@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabaseClient.js';
 import { useToast } from '../context/ToastContext.jsx';
-import { ar } from '../utils/numbers.js';
+import { ar, ar1 } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS } from '../utils/qualificationConfig.js';
 import Modal from './Modal.jsx';
 
@@ -23,7 +23,7 @@ function exportExcel(queueItem, committee) {
   const studentName = student.name || '';
   const isSingle = committee?.is_single_judge;
   const avg = evals.length > 0
-    ? Math.round(evals.reduce((s, e) => s + e.final_score, 0) / evals.length)
+    ? Math.round((evals.reduce((s, e) => s + e.final_score, 0) / evals.length) * 10) / 10
     : null;
 
   const members = committee?.members || [];
@@ -62,7 +62,7 @@ function exportExcel(queueItem, committee) {
     evals.forEach((e, ei) => {
       const qs = questionsFor(e);
       const judgeName = e.evaluator_name || (isSingle ? 'المحكم' : ei === 0 ? 'المحكم الأول' : 'المحكم الثاني');
-      data.push([`👤 ${judgeName}`, `النتيجة: ${ar(Math.round(e.final_score))}%`]);
+      data.push([`👤 ${judgeName}`, `النتيجة: ${ar1(e.final_score)}%`]);
 
       const headerRow = ['السؤال', 'الصوت (من عشرة)'];
       deductionLabels.forEach(d => headerRow.push(d));
@@ -249,7 +249,7 @@ export default function AdminFinalsOverview({ onChanged }) {
                         {c.queue.map(q => {
                           const evalCount = q.evaluations?.length || 0;
                           const avg = evalCount > 0
-                            ? Math.round(q.evaluations.reduce((s, e) => s + e.final_score, 0) / evalCount)
+                            ? Math.round((q.evaluations.reduce((s, e) => s + e.final_score, 0) / evalCount) * 10) / 10
                             : null;
                           const isReady = evalCount >= evaluationsRequired && q.status !== 'finalized';
                           const isFinalized = q.status === 'finalized';
@@ -280,7 +280,7 @@ export default function AdminFinalsOverview({ onChanged }) {
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                     {q.evaluations.map(e => (
                                       <span key={e.id}>
-                                        {e.evaluator_name}: {ar(Math.round(e.final_score))}%
+                                        {e.evaluator_name}: {ar1(e.final_score)}%
                                       </span>
                                     ))}
                                   </div>
@@ -289,7 +289,7 @@ export default function AdminFinalsOverview({ onChanged }) {
                               <td>
                                 {avg !== null ? (
                                   <strong style={{ color: avg >= 80 ? '#6ee7b7' : avg >= 60 ? '#fcd34d' : '#fca5a5' }}>
-                                    {ar(avg)}%
+                                    {ar1(avg)}%
                                   </strong>
                                 ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                               </td>
@@ -375,7 +375,7 @@ function AdminEvalDetail({ queueItem, onClose }) {
                     color: e.final_score >= 80 ? '#6ee7b7' : '#fcd34d',
                     fontWeight: 700
                   }}>
-                    {ar(Math.round(e.final_score))}%
+                    {ar1(e.final_score)}%
                   </span>
                 </div>
 
@@ -410,7 +410,7 @@ function AdminEvalDetail({ queueItem, onClose }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{labelForIndex(qi)}</span>
                             <span style={{ fontWeight: 700, fontSize: '0.9rem', color: qScore >= 80 ? '#6ee7b7' : qScore >= 60 ? '#fcd34d' : '#fca5a5' }}>
-                            {ar(Math.round(qScore))}%
+                            {ar1(qScore)}%
                           </span>
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>

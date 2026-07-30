@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { useToast } from '../context/ToastContext.jsx';
-import { ar } from '../utils/numbers.js';
+import { ar, ar1 } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS } from '../utils/qualificationConfig.js';
 import { PlusIcon, TrashIcon } from './Icons.jsx';
 import Modal from './Modal.jsx';
@@ -116,7 +116,7 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
               let canEvaluate;
               if (isAdmin) {
                 avg = evalCount > 0
-                  ? Math.round(q.evaluations.reduce((s, e) => s + e.final_score, 0) / evalCount)
+                  ? Math.round((q.evaluations.reduce((s, e) => s + e.final_score, 0) / evalCount) * 10) / 10
                   : null;
                 canEvaluate = false;
               } else {
@@ -168,7 +168,7 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
                                 fontSize: '0.85rem',
                                 color: e.final_score >= 80 ? '#6ee7b7' : e.final_score >= 60 ? '#fcd34d' : '#fca5a5'
                               }}>
-                                {ar(Math.round(e.final_score))}%
+                                {ar1(e.final_score)}%
                               </strong>
                             ) : (
                               <span className="level-badge" style={{
@@ -210,7 +210,7 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
                     <td>
                       {avg !== null ? (
                         <strong style={{ fontSize: '1rem', color: avg >= 80 ? '#6ee7b7' : avg >= 60 ? '#fcd34d' : '#fca5a5' }}>
-                          {ar(avg)}%
+                          {ar1(avg)}%
                         </strong>
                       ) : (
                         <span style={{ color: 'var(--text-muted)' }}>—</span>
@@ -224,7 +224,7 @@ export default function CommitteeQueue({ committee, user, onEvaluate, onChanged 
                       </button>
                     ) : myEval ? (
                       <span className="level-badge" style={{ background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.25)', color: '#6ee7b7' }}>
-                        {ar(Math.round(myEval.final_score))}%
+                        {ar1(myEval.final_score)}%
                       </span>
                     ) : (
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>—</span>
@@ -325,7 +325,7 @@ function DetailsBreakdown({ queueItem, isSingle, onClose }) {
                     color: e.final_score >= 80 ? '#6ee7b7' : '#fcd34d',
                     fontWeight: 700
                   }}>
-                    {ar(Math.round(e.final_score))}%
+                    {ar1(e.final_score)}%
                   </span>
                 </div>
 
@@ -360,7 +360,7 @@ function DetailsBreakdown({ queueItem, isSingle, onClose }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                           <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{labelForIndex(qi)}</span>
                           <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>
-                            {ar(Math.round(qScore))}%
+                            {ar1(qScore)}%
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
