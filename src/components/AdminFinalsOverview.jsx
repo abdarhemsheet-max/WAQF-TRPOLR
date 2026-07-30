@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabaseClient.js';
 import { ar } from '../utils/numbers.js';
 import { DEDUCTION_KEYS, QUAL_DEDUCTIONS } from '../utils/qualificationConfig.js';
@@ -15,44 +16,45 @@ function questionsFor(e) {
   return [{ question_index: 0, voice_score: e.voice_score || 0, deductions: rawDed || {} }];
 }
 
-function exportCSV(queueItem) {
+function exportExcel(queueItem) {
   const evals = queueItem.evaluations || [];
   const studentName = queueItem.student?.name || '';
   const avg = evals.length > 0
     ? Math.round(evals.reduce((s, e) => s + e.final_score, 0) / evals.length)
     : 0;
 
-  const rows = [];
-  const header = ['اسم الطالب', 'المحكم', 'النتيجة النهائية', 'متوسط النتيجة',
-    'السؤال', 'الصوت', 'الخصميات'];
-  rows.push(header.join(','));
+  const HEADER = ['المحكم', 'النتيجة', 'السؤال', 'الصوت', 'الخصميات'];
+  const data = [HEADER];
 
-  evals.forEach(e => {
+  evals.forEach((e, ei) => {
     const qs = questionsFor(e);
+    const name = e.evaluator_name || `محكم ${ei + 1}`;
+    const fScore = Math.round(e.final_score);
+
     qs.forEach((q, qi) => {
       const ded = q.deductions || {};
       const voice = q.voice_score || 0;
       const activeDed = DEDUCTION_KEYS.filter(c => (ded[c] || 0) > 0)
-        .map(c => `${c}:${ded[c]}`).join('; ');
-      rows.push([
-        `"${studentName}"`,
-        `"${e.evaluator_name || ''}"`,
-        Math.round(e.final_score),
-        avg,
-        labelForIndex(qi),
-        voice,
-        `"${activeDed}"`
-      ].join(','));
+        .map(c => `${c}: ${ar(ded[c])} (-${QUAL_DEDUCTIONS[c]})`).join('، ');
+      data.push([name, fScore, labelForIndex(qi), voice, activeDed || '—']);
     });
   });
 
-  const blob = new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `تقييم_${studentName}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  data.push([]);
+  data.push(['متوسط النتيجة النهائية', `${ar(avg)}%`]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(data);
+
+  ws['!cols'] = [
+    { wch: 20 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 50 }
+  ];
+
+  const wscols = [{ wch: 20 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 50 }];
+  ws['!cols'] = wscols;
+
+  XLSX.utils.book_append_sheet(wb, ws, 'التقييم');
+  XLSX.writeFile(wb, `تقييم_${studentName}.xlsx`);
 }
 
 export default function AdminFinalsOverview({ onChanged }) {
@@ -244,7 +246,7 @@ export default function AdminFinalsOverview({ onChanged }) {
                                   </button>
                                 ) : isFinalized ? (
                                   <button className="btn-action add"
-                                    onClick={() => exportCSV(q)}
+                                    onClick={() => exportExcel(q)}
                                     style={{ padding: '6px 12px', fontSize: '0.78rem' }}>
                                     تنزيل إكسل
                                   </button>
