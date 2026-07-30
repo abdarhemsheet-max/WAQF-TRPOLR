@@ -235,7 +235,10 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
 
       <div className="eval-table-area">
         <div className="glass-panel" style={{ maxWidth: 700, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div className="sticky top-0 z-10" style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            marginBottom: 16, background: '#0f172a', padding: '8px 0'
+          }}>
             <h3 style={{ fontSize: '1.1rem', margin: 0 }}>{labelForIndex(currentSection)}</h3>
             <button onClick={handleUndo} disabled={historyRef.current.length === 0}
               className="btn-action"
@@ -264,7 +267,7 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
             {DEDUCTION_KEYS.map(key => {
               const count = section.deductions[key] || 0;
               const val = QUAL_DEDUCTIONS[key] || 0;
@@ -275,22 +278,23 @@ export default function FinalsEvaluationLockdown({ queueItem, user, onSubmitted,
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inc(currentSection, key); } }}
                   style={{
                     cursor: 'pointer', userSelect: 'none',
-                    display: 'flex', alignItems: 'center', gap: 8,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center', gap: 4,
                     background: hasCount ? 'rgba(252,165,165,0.08)' : 'rgba(255,255,255,0.03)',
-                    borderRadius: 14, padding: '12px 14px',
+                    borderRadius: 14, padding: '12px 8px', minHeight: 80,
                     border: hasCount ? '1px solid rgba(252,165,165,0.25)' : '1px solid rgba(255,255,255,0.06)',
                     transition: 'background 0.1s, border-color 0.1s'
                   }}>
                   <span style={{
-                    flex: 1, fontSize: '0.85rem', fontWeight: hasCount ? 600 : 400,
-                    color: hasCount ? '#fca5a5' : 'var(--text-main)'
+                    fontSize: '0.78rem', fontWeight: hasCount ? 600 : 400, textAlign: 'center',
+                    color: hasCount ? '#fca5a5' : 'var(--text-main)', lineHeight: 1.3
                   }}>{key}</span>
                   <span style={{
-                    fontWeight: 700, fontSize: '1.1rem', minWidth: 30, textAlign: 'center',
+                    fontWeight: 700, fontSize: '1.1rem', textAlign: 'center',
                     color: hasCount ? '#fca5a5' : 'var(--text-muted)'
                   }}>{ar(count)}</span>
                   <span style={{
-                    color: '#fca5a5', fontSize: '0.75rem', minWidth: 40, textAlign: 'left',
+                    color: '#fca5a5', fontSize: '0.7rem', textAlign: 'center',
                     fontWeight: 500
                   }}>-{val.toFixed(1)}</span>
                 </div>
